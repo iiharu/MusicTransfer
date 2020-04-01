@@ -14,6 +14,7 @@
 		2CEFF90B2434068E00F0D0D7 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2CEFF9092434068E00F0D0D7 /* Main.storyboard */; };
 		2CEFF9172434068E00F0D0D7 /* MusicTransferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CEFF9162434068E00F0D0D7 /* MusicTransferTests.swift */; };
 		2CEFF9222434068F00F0D0D7 /* MusicTransferUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CEFF9212434068F00F0D0D7 /* MusicTransferUITests.swift */; };
+		2CEFF93124340AEC00F0D0D7 /* iTunesLibrary.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2CEFF93024340AEC00F0D0D7 /* iTunesLibrary.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,6 +49,7 @@
 		2CEFF91D2434068F00F0D0D7 /* MusicTransferUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MusicTransferUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2CEFF9212434068F00F0D0D7 /* MusicTransferUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicTransferUITests.swift; sourceTree = "<group>"; };
 		2CEFF9232434068F00F0D0D7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		2CEFF93024340AEC00F0D0D7 /* iTunesLibrary.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = iTunesLibrary.framework; path = System/Library/Frameworks/iTunesLibrary.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,6 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2CEFF93124340AEC00F0D0D7 /* iTunesLibrary.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -82,6 +85,7 @@
 				2CEFF9152434068E00F0D0D7 /* MusicTransferTests */,
 				2CEFF9202434068F00F0D0D7 /* MusicTransferUITests */,
 				2CEFF8FE2434068E00F0D0D7 /* Products */,
+				2CEFF92F24340AEC00F0D0D7 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -133,6 +137,14 @@
 				2CEFF9232434068F00F0D0D7 /* Info.plist */,
 			);
 			path = MusicTransferUITests;
+			sourceTree = "<group>";
+		};
+		2CEFF92F24340AEC00F0D0D7 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2CEFF93024340AEC00F0D0D7 /* iTunesLibrary.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -438,6 +450,7 @@
 				DEVELOPMENT_TEAM = P9L6P86B8H;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = " /Library/Frameworks/iTunesLibrary.framework ";
 				INFOPLIST_FILE = MusicTransfer/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -461,6 +474,7 @@
 				DEVELOPMENT_TEAM = P9L6P86B8H;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = " /Library/Frameworks/iTunesLibrary.framework ";
 				INFOPLIST_FILE = MusicTransfer/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
