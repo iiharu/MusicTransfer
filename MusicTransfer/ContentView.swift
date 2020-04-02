@@ -9,9 +9,12 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State var walkman_music_folder = ""
     var body: some View {
-        Text("Hello, World!")
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack{
+            Text("WALKMAN MUSIC folder (such as /Volumes/WALKMAN/MUSIC)")
+            TextField("/Volumes/WALKMAN/MUSIC", text: $walkman_music_folder).textFieldStyle(RoundedBorderTextFieldStyle()).padding()
+        }
     }
 }
 
