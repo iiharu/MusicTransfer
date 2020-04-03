@@ -71,7 +71,6 @@ class iTunesTransfer {
     init() {}
     
     init(walkman_music_folder: String) {
-        print(walkman_music_folder)
         if (walkman_music_folder != "") {
             self.walkman_music_folder = walkman_music_folder
         }
@@ -107,33 +106,57 @@ class iTunesTransfer {
 
         // Track
         let id = mediaItem.persistentID.intValue // NSValue
-        guard  let location = mediaItem.location else {
+        guard let location = mediaItem.location else {
             print("mediaItem's location is nil")
             return
         }
 
         // src
-        let src = location.path
+        let src: URL = location
         // replace /Users/iiharu/Music/Music/Media.localized/Music -> walkman_music_folder
         
         // dst
-        // sandbox app returns containerd home dir
-        // print(library.musicFolderLocation)
-
-        let homeFolderLocation: String = FileManager.default.homeDirectoryForCurrentUser.path
-        // print(homeFolderLocation)
-        var mediaFolderLocation: String = homeFolderLocation
+        let homeFolderLocation: URL = FileManager.default.homeDirectoryForCurrentUser
+        var mediaFolderLocation: URL = homeFolderLocation
         if (atof(apiVersion) > 1.0) {
-            mediaFolderLocation = mediaFolderLocation + "/Music" + "/Music" + "/Media.localized" + "/Music"
+            for d in ["Music", "Music", "Media.localized", "Music"]
+            {
+                mediaFolderLocation.appendPathComponent(d, isDirectory: true)
+            }
         } else {
-            mediaFolderLocation = mediaFolderLocation + "/Music" + "/iTunes" + "/iTunes Media"
+            for d in ["Music", "iTunes", "iTunes Media"]
+            {
+                mediaFolderLocation.appendPathComponent(d, isDirectory: true)
+            }
         }
-//        let mediaFolderLocation: String = homeFolderLocation + "/Music" + "/Music" + "/Media.localized" + "/Music"
-        var dst = src
-        if let range = dst.range(of: mediaFolderLocation) {
-            dst.replaceSubrange(range, with: walkman_music_folder)
+        var str = src.path
+        if let range = str.range(of: mediaFolderLocation.path) {
+            str.replaceSubrange(range, with: walkman_music_folder)
         }
-        print(dst)
+        let dst = URL(fileURLWithPath: str)
+        
+        // copy
+        // file exsits and dir -> ok
+        // file exsits and not dir -> ng
+        // file not exsits -> ok
+        let parentFolderLocation = dst.deletingLastPathComponent()
+        do {
+            var isDir:ObjCBool = ObjCBool(false)
+            if (FileManager.default.fileExists(atPath: dst.path, isDirectory: &isDir)) {
+                if (!isDir.boolValue) {
+                    // raise Error
+                    print("\(parentFolderLocation.path) is exsists, but it is not directory")
+                    return
+                }
+            } else {
+                try FileManager.default.createDirectory(at: parentFolderLocation, withIntermediateDirectories: true, attributes: nil)
+            }
+            try FileManager.default.copyItem(at: src, to: dst)
+        }
+        catch (let e) {
+                print(e)
+            }
+        }
 
         // AlbumArtist
 //        let album = mediaItem.album
@@ -169,14 +192,6 @@ class iTunesTransfer {
 //            dst = albumArtist! + "/" + dst
 //        }
 
-        do {
-            // Mkdir
 
-            try FileManager.default.copyItem(atPath: src, toPath: dst)
-        } catch (let error) {
-            print(error)
-        }
-
-    }
 }
 
