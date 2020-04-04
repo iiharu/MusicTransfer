@@ -47,6 +47,8 @@ class iTunesTransfer {
     // "1.0": iTunes.app, "1.1": Music.app
     var apiVersion: String = "1.1"
     
+    let fileManager: FileManager = FileManager.default
+    
     var dict: Dictionary<NSNumber, String> = [:]
     
     init() {}
@@ -55,6 +57,7 @@ class iTunesTransfer {
         if (walkman_music_folder != "") {
             self.walkman_music_folder = walkman_music_folder
         }
+        // self.walkman_music_folder = "/Users/iiharu/Desktop/WALKMAN/MUSIC"
     }
     
     func transfer() {
@@ -64,17 +67,15 @@ class iTunesTransfer {
                 
         // Transfer Songs
         let allSongItems = library.allMediaItems.filter({$0.mediaKind == ITLibMediaItemMediaKind.kindSong})
-
         for item in allSongItems {
             transfer(mediaItem: item)
         }
         
         // Transfer Playlists
+        print("Transfer Playlists")
         let allPlaylist = library.allPlaylists.filter({$0.isMaster != true}).filter({$0.items.count > 0})
-
         for list in allPlaylist {
             transfer(playlist: list)
-            return
         }
         
     }
@@ -98,7 +99,7 @@ class iTunesTransfer {
         // replace /Users/iiharu/Music/Music/Media.localized/Music -> walkman_music_folder
         
         // dst
-        let homeFolderLocation: URL = FileManager.default.homeDirectoryForCurrentUser
+        let homeFolderLocation: URL = fileManager.homeDirectoryForCurrentUser
         var mediaFolderLocation: URL = homeFolderLocation
         if (atof(apiVersion) > 1.0) {
             for d in ["Music", "Music", "Media.localized", "Music"]
@@ -162,45 +163,68 @@ class iTunesTransfer {
         //            dst = albumArtist! + "/" + dst
         //        }
 
-        // copy
-        // file exsits and dir -> ok
-        // file exsits and not dir -> ng
-        // file not exsits -> ok
+        // Copy
         let parentFolderLocation = dst.deletingLastPathComponent()
-        return
-        let dryrun = true
-        if (!dryrun) {
-            do {
-                var isDir:ObjCBool = ObjCBool(false)
-                if (FileManager.default.fileExists(atPath: dst.path, isDirectory: &isDir)) {
-                    if (!isDir.boolValue) {
-                        // raise Error
-                        print("\(parentFolderLocation.path) is exsists, but it is not directory")
-                        return
-                    }
-                } else {
-                        try FileManager.default.createDirectory(at: parentFolderLocation, withIntermediateDirectories: true, attributes: nil)
-              
+        do {
+            // CreateDirectory
+            var isDir:ObjCBool = ObjCBool(false)
+            if (fileManager.fileExists(atPath: dst.path, isDirectory: &isDir)) {
+                if (!isDir.boolValue) {
+                    // raise Error
+                    print("\(parentFolderLocation.path) is exsists, but it is not directory")
+                    return
                 }
-                try FileManager.default.copyItem(at: src, to: dst)
+            } else {
+                try fileManager.createDirectory(at: parentFolderLocation, withIntermediateDirectories: true, attributes: nil)
             }
-            catch (let e) {
-                print(e)
+            // CopyItem
+            var willCopy: Bool = true
+//            if (fileManager.fileExists(atPath: dst.path)) {
+//                let srcModificationDate = try fileManager.attributesOfItem(atPath: src.path)[FileAttributeKey.modificationDate] as! Date
+//                let dstModificationDate = try fileManager.attributesOfItem(atPath: dst.path)[FileAttributeKey.modificationDate] as! Date
+//                if (srcModificationDate > dstModificationDate) {
+//                    willCopy = true
+//                } else {
+//                    willCopy = false
+//                }
+//            }
+            if (willCopy) {
+                try fileManager.copyItem(at: src, to: dst)
             }
+        }
+        catch (let e) {
+            print(e)
         }
     }
     
     func transfer(playlist: ITLibPlaylist) {
-        print(playlist.name)
-        let items = playlist.items.map({dict[$0.persistentID]}).filter({$0 != nil})
-//        let count: int = items.reduce(0, {$0 + [$0 != nil ]})
-        let count: Int = items.reduce(0, {$0 + (($1 != nil) ? 1 : 0)})
-        let m38u: URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(playlist.name + ".m38u")
-        // print(items)
-        print(items[0])
-        print(items.count)
-        print(count)
-    }
 
+        // Filter out nil item
+        let items:[String?] = playlist.items.map({dict[$0.persistentID]}).filter({$0 != nil})
+        if (items.count == 0) {
+            return
+        }
+        
+        let m3u8: URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(playlist.name + ".M3U8")
+        
+        // Contents
+        var contents: String = "#EXTM3U\n"
+        for item in items {
+            contents.append(contentsOf: "#EXTINF:,\n")
+            contents.append(contentsOf: item! + "\n")
+        }
+
+        // Dump M3U8
+        do {
+            if (!fileManager.fileExists(atPath: m3u8.path)) {
+                    fileManager.createFile(atPath: m3u8.path, contents: nil, attributes: nil)
+            }
+            let handle = try FileHandle(forUpdating: m3u8)
+            handle.write(contents.data(using: .utf8)!)
+            handle.closeFile()
+        } catch let e {
+            print(e)
+        }
+    }
 }
 
