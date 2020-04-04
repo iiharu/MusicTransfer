@@ -32,23 +32,15 @@ struct ContentView_Previews: PreviewProvider {
 
 
 // iTunes Transfer
-// instance生成は, 最初からしておいて,
-// paramをセットする方向
-// ITLibraryは使い捨てでもいいのでは?
-// 一番大事なこと. PlayListから曲を拾ってきた時にしっかりとしたパスが見つかること.
-//
-//  パスはStirngでなくURLで持ってた方が良さそう
-
-
 class iTunesTransfer {
     
+    // Walkman Music Folder
     var walkman_music_folder: String = "/Volumes/WALKMAN/MUSIC"
-    // apiVersion
-    // "1.0": iTunes.app, "1.1": Music.app
+    // apiVersion ("1.0" -> iTunes.app, "1.1" -> Music.app)
     var apiVersion: String = "1.1"
-    
+    // FileManager
     let fileManager: FileManager = FileManager.default
-    
+    // SongDict
     var dict: Dictionary<NSNumber, String> = [:]
     
     init() {}
@@ -57,29 +49,30 @@ class iTunesTransfer {
         if (walkman_music_folder != "") {
             self.walkman_music_folder = walkman_music_folder
         }
-        // self.walkman_music_folder = "/Users/iiharu/Desktop/WALKMAN/MUSIC"
     }
     
+    // Transfer Library
     func transfer() {
         // ITLibrary
-        guard let library = try? ITLibrary(apiVersion: apiVersion) else {return} // raise Exception
+        guard let library: ITLibrary = try? ITLibrary(apiVersion: apiVersion) else {return} // raise Exception
         // AllSongItems
-                
+        
         // Transfer Songs
-        let allSongItems = library.allMediaItems.filter({$0.mediaKind == ITLibMediaItemMediaKind.kindSong})
-        for item in allSongItems {
+        let allSongItems: [ITLibMediaItem] = library.allMediaItems.filter({$0.mediaKind == ITLibMediaItemMediaKind.kindSong})
+        for item: ITLibMediaItem in allSongItems {
             transfer(mediaItem: item)
+            return
         }
         
         // Transfer Playlists
         print("Transfer Playlists")
-        let allPlaylist = library.allPlaylists.filter({$0.isMaster != true}).filter({$0.items.count > 0})
-        for list in allPlaylist {
+        let allPlaylist: [ITLibPlaylist] = library.allPlaylists.filter({$0.isMaster != true}).filter({$0.items.count > 0})
+        for list: ITLibPlaylist in allPlaylist {
             transfer(playlist: list)
         }
-        
     }
     
+    // Transfer MediaItem
     func transfer(mediaItem: ITLibMediaItem) {
         // Returns mediaItem is not song.
         if (mediaItem.mediaKind != ITLibMediaItemMediaKind.kindSong) {
@@ -88,15 +81,14 @@ class iTunesTransfer {
         }
         
         // Track
-        let id = mediaItem.persistentID.intValue // NSValue
-        guard let location = mediaItem.location else {
+        let id: NSNumber = mediaItem.persistentID
+        guard let location: URL = mediaItem.location else {
             print("mediaItem's location is nil")
             return
         }
         
         // src
         let src: URL = location
-        // replace /Users/iiharu/Music/Music/Media.localized/Music -> walkman_music_folder
         
         // dst
         let homeFolderLocation: URL = fileManager.homeDirectoryForCurrentUser
@@ -113,94 +105,57 @@ class iTunesTransfer {
             }
         }
         
-        // mediaItemPathから定義してるけど、
-        // 転送先から定義して, walkman_music_folderを消すのがいいかも
-        // mediaItemのとこから転送先を作っていくってなるとそっちの方が恋率良さそう
-        var mediaItemPath:String = src.path
+        // MediaItemPath
+        var mediaItemPath: String = src.path
         if let range = mediaItemPath.range(of: (mediaFolderLocation.path + "/")) {
             mediaItemPath.replaceSubrange(range, with: "")
         }
         // Add Playlist
-        dict[mediaItem.persistentID] = mediaItemPath
+        dict[id] = mediaItemPath
+        let dst: URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(mediaItemPath)
         
-        let dst:URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(mediaItemPath)
-
-        //print(mediaItemPath)
-        //print(dst)
-
-
-        // AlbumArtist
-        //        let album = mediaItem.album
-        //        var albumArtist = album.albumArtist
-        //        if (albumArtist == nil) {
-        //            if (album.isCompilation) {
-        //                albumArtist = "Compilation"
-        //            } else {
-        //                albumArtist = mediaItem.artist?.name
-        //            }
-        //        }
-        //        // AlbumTitle
-        //        let albumTitle = album.title
-        //        // AlbumDiscNumber
-        //        let discNumber = album.discNumber
-        //        // TrackNumber
-        //        let trackNumber = mediaItem.trackNumber
-        //        // Title
-        //        let title = mediaItem.title
-        //        // Extension
-        //        let ext = location.pathExtension
-        //        var dst = title + "." + ext
-        //        if (trackNumber > 0) {
-        //            dst = "\(trackNumber) \(dst)"
-        //            if (discNumber > 0) {
-        //                dst = "\(discNumber)-\(dst)"
-        //            }
-        //        }
-        //        if (albumTitle != nil) {
-        //            dst = albumTitle! + "/" + dst
-        //        }
-        //        if (albumArtist != nil) {
-        //            dst = albumArtist! + "/" + dst
-        //        }
-
-        // Copy
-        let parentFolderLocation = dst.deletingLastPathComponent()
+        // CreateDirectory
+        let parentFolderLocation: URL = dst.deletingLastPathComponent()
+        var isDir: ObjCBool = ObjCBool(false)
+        if (fileManager.fileExists(atPath: dst.path, isDirectory: &isDir) && !isDir.boolValue) {
+            print("\(parentFolderLocation.path) is exsists, but it is not directory")
+            return
+        }
         do {
-            // CreateDirectory
-            var isDir:ObjCBool = ObjCBool(false)
-            if (fileManager.fileExists(atPath: dst.path, isDirectory: &isDir)) {
-                if (!isDir.boolValue) {
-                    // raise Error
-                    print("\(parentFolderLocation.path) is exsists, but it is not directory")
-                    return
-                }
-            } else {
-                try fileManager.createDirectory(at: parentFolderLocation, withIntermediateDirectories: true, attributes: nil)
-            }
-            // CopyItem
-            var willCopy: Bool = true
-//            if (fileManager.fileExists(atPath: dst.path)) {
-//                let srcModificationDate = try fileManager.attributesOfItem(atPath: src.path)[FileAttributeKey.modificationDate] as! Date
-//                let dstModificationDate = try fileManager.attributesOfItem(atPath: dst.path)[FileAttributeKey.modificationDate] as! Date
-//                if (srcModificationDate > dstModificationDate) {
-//                    willCopy = true
-//                } else {
-//                    willCopy = false
-//                }
-//            }
-            if (willCopy) {
-                try fileManager.copyItem(at: src, to: dst)
-            }
+            try fileManager.createDirectory(at: parentFolderLocation, withIntermediateDirectories: true, attributes: nil)
         }
         catch (let e) {
             print(e)
         }
+        
+        // CopyItem
+        var willCopy: Bool = true
+        do {
+            if (fileManager.fileExists(atPath: dst.path)) {
+                let srcModificationDate = try fileManager.attributesOfItem(atPath: src.path)[FileAttributeKey.modificationDate] as! Date
+                let dstModificationDate = try fileManager.attributesOfItem(atPath: dst.path)[FileAttributeKey.modificationDate] as! Date
+                if (dstModificationDate > srcModificationDate) {
+                    willCopy = false
+                }
+            }
+        } catch(let e) {
+            print(e)
+        }
+        do {
+            if (willCopy) {
+                try fileManager.copyItem(at: src, to: dst)
+            }
+        } catch (let e) {
+            print(e)
+        }
+        
     }
     
+    // Transfer Playlist
     func transfer(playlist: ITLibPlaylist) {
-
+        
         // Filter out nil item
-        let items:[String?] = playlist.items.map({dict[$0.persistentID]}).filter({$0 != nil})
+        let items: [String?] = playlist.items.map({dict[$0.persistentID]}).filter({$0 != nil})
         if (items.count == 0) {
             return
         }
@@ -210,22 +165,23 @@ class iTunesTransfer {
         
         // Contents
         var contents: String = "#EXTM3U\n"
-        for item in items {
+        for item: String? in items {
             contents.append(contentsOf: "#EXTINF:,\n")
             contents.append(contentsOf: item! + "\n")
         }
-
+        
         // Dump M3U8
         if (!fileManager.fileExists(atPath: m3u8.path)) {
             fileManager.createFile(atPath: m3u8.path, contents: nil, attributes: nil)
         }
         do {
-            let handle = try FileHandle(forUpdating: m3u8)
+            let handle: FileHandle = try FileHandle(forUpdating: m3u8)
             handle.write(contents.data(using: .utf8)!)
             handle.closeFile()
-        } catch let e {
+        } catch (let e) {
             print(e)
         }
     }
+    
 }
 
