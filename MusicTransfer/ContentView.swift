@@ -205,6 +205,7 @@ class iTunesTransfer {
             return
         }
         
+        // M3U8
         let m3u8: URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(playlist.name + ".M3U8")
         
         // Contents
@@ -215,10 +216,10 @@ class iTunesTransfer {
         }
 
         // Dump M3U8
+        if (!fileManager.fileExists(atPath: m3u8.path)) {
+            fileManager.createFile(atPath: m3u8.path, contents: nil, attributes: nil)
+        }
         do {
-            if (!fileManager.fileExists(atPath: m3u8.path)) {
-                    fileManager.createFile(atPath: m3u8.path, contents: nil, attributes: nil)
-            }
             let handle = try FileHandle(forUpdating: m3u8)
             handle.write(contents.data(using: .utf8)!)
             handle.closeFile()
