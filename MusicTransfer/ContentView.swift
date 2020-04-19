@@ -173,30 +173,25 @@ class iTunesTransfer {
         let src: URL = location
         
         // dst
-        let homeFolderLocation: URL = fileManager.homeDirectoryForCurrentUser
-        var mediaFolderLocation: URL = homeFolderLocation
-        if (atof(apiVersion) > 1.0) {
-            for d in ["Music", "Music", "Media.localized", "Music"]
-            {
-                mediaFolderLocation.appendPathComponent(d, isDirectory: true)
-            }
-        } else {
-            for d in ["Music", "iTunes", "iTunes Media"]
-            {
-                mediaFolderLocation.appendPathComponent(d, isDirectory: true)
-            }
+        guard let dst = get_copy_dst(mediaItem: mediaItem) else {
+            print("get_copy_dst failed")
+            return
         }
-        
-        // MediaItemPath (path from /Volumes/WALKMAN/MUSIC/)
-        var mediaItemPath: String = src.path
-        if let range = mediaItemPath.range(of: (mediaFolderLocation.path + "/")) {
+
+        // mediaItemPath (path form /Volumes/WALKMAN/MUSIC)
+        guard var mediaItemPath: String = dst.path.removingPercentEncoding else {
+            print("failed removing percent encoding")
+            return // TODO: raise Error
+        }
+        if let range = mediaItemPath.range(of: (self.walkman_music_folder + "/")) {
             mediaItemPath.replaceSubrange(range, with: "")
         }
+        print(mediaItemPath)
+        
         // Add Playlist
-        // Registar mediaItem path to dictionary for transfering playlist.
+        // Register mediaItemPath (UNICODE NFC) to dictionary for tranfer playlist.
         dict[id] = mediaItemPath.precomposedStringWithCanonicalMapping // NFD -> NFC
-        // dst (`copy to` path form /)
-        let dst: URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(mediaItemPath)
+        return
         
         // CreateDirectory if not exists.
         let parentFolderLocation: URL = dst.deletingLastPathComponent()
