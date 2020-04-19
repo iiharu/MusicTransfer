@@ -40,8 +40,6 @@ class iTunesTransfer {
     var apiVersion: String = "1.1"
     // FileManager
     let fileManager: FileManager = FileManager.default
-    // Character Set
-    let char_set: CharacterSet = .urlQueryAllowed
     // SongDict persistentID -> NFC Normalized path from /Volumes/WALKMAN/MUSIC
     var dict: Dictionary<NSNumber, String> = [:]
     
@@ -63,10 +61,10 @@ class iTunesTransfer {
         let allSongItems: [ITLibMediaItem] = library.allMediaItems.filter({$0.mediaKind == ITLibMediaItemMediaKind.kindSong})
         for item: ITLibMediaItem in allSongItems {
             transfer(mediaItem: item)
-            return // TO DEBUG
+            //return // TO DEBUG
         }
         
-        return // TO DEBUG
+        //return // TO DEBUG
         
         // Transfer Playlists
         print("Transfer Playlists")
@@ -85,71 +83,48 @@ class iTunesTransfer {
         return dst
     }
 
-    // Encode String for transfer
-    // - Replace '/' (not path separater) with '_'
-    // - Encode with percent-encoding
-    func encode(src: String) -> String {
-        // Replace '/' with '_'
-        var str:String = src
-        while ((str.range(of: "/")) != nil) {
-            if let range = str.range(of: "/") {
-                str.replaceSubrange(range, with: "_")
+    // Replace `/` with `_`
+    func replace_slash_with_underscore(str: String) -> String {
+        var _str: String = str
+        while ((_str.range(of: "/")) != nil) {
+            if let range = _str.range(of: "/") {
+                _str.replaceSubrange(range, with: "_")
             }
         }
-        // Encode with percent encoding
-        guard let dst = str.addingPercentEncoding(withAllowedCharacters: self.char_set) else {
-            return "" // TODO: raise Error
-        }
-        return dst
+        return _str
     }
-    
-    func get_copy_dst(mediaItem: ITLibMediaItem) -> URL? {
-        
-        // Copy Destination
-        var copy_dst = URL(string: walkman_music_folder)
-        
+
+    // Get copy_dst (relative path from /Volumes/WALKMAN/MUSIC)
+    func get_copy_dst(item: ITLibMediaItem) -> String? {
         // Album
-        let album:ITLibAlbum = mediaItem.album
+        let album: ITLibAlbum = item.album
         
         // Artist
-        var albumArtist:String = ""
+        var albumArtist: String = ""
         if (album.albumArtist != nil) {
             albumArtist = album.albumArtist!
         } else {
             if (album.isCompilation) {
                 albumArtist = "Compilation"
-            } else if (mediaItem.artist?.name != nil) {
-                albumArtist = mediaItem.artist!.name!
+            } else if (item.artist?.name != nil) {
+                albumArtist = item.artist!.name!
             }
         }
-        albumArtist = encode(src: albumArtist)
+        albumArtist = replace_slash_with_underscore(str: albumArtist)
         
         // Title
-        var albumTitle: String = ""
-        if (album.title != nil) {
-            albumTitle = album.title!
-        }
-        // print(albumTitle)
-        albumTitle = encode(src: albumTitle)
+        var albumTitle: String = album.title ?? ""
+        albumTitle = replace_slash_with_underscore(str: albumTitle)
         
         // FileName
-        guard var fileName: String = mediaItem.location?.lastPathComponent else {
+        guard var fileName: String = item.location?.lastPathComponent else {
             print("mediaItem's location is nil")
             return nil // TODO: raise Error
         }
-//        var fileName: String = ""
-//        if (mediaItem.location?.lastPathComponent != nil) {
-//            fileName = mediaItem.location!.lastPathComponent
-//        } else {
-//            print("mediaItem's location is nil")
-//            return nil // TODO: raise Error
-//        }
-        fileName = encode(src: fileName)
+        fileName = replace_slash_with_underscore(str: fileName)
         
-        copy_dst?.appendPathComponent(albumArtist, isDirectory: true)
-        copy_dst?.appendPathComponent(albumTitle, isDirectory: true)
-        copy_dst?.appendPathComponent(fileName, isDirectory: false)
-        
+        let copy_dst = albumArtist + "/" + albumTitle + "/" + fileName
+
         return copy_dst
     }
     
@@ -172,26 +147,18 @@ class iTunesTransfer {
         // src
         let src: URL = location
         
-        // dst
-        guard let dst = get_copy_dst(mediaItem: mediaItem) else {
+        // mediaItemPath
+        guard let mediaItemPath: String = get_copy_dst(item: mediaItem) else {
             print("get_copy_dst failed")
-            return
-        }
-
-        // mediaItemPath (path form /Volumes/WALKMAN/MUSIC)
-        guard var mediaItemPath: String = dst.path.removingPercentEncoding else {
-            print("failed removing percent encoding")
             return // TODO: raise Error
         }
-        if let range = mediaItemPath.range(of: (self.walkman_music_folder + "/")) {
-            mediaItemPath.replaceSubrange(range, with: "")
-        }
-        print(mediaItemPath)
-        
-        // Add Playlist
-        // Register mediaItemPath (UNICODE NFC) to dictionary for tranfer playlist.
+
+        // Register mediaItemPath (UNICDOE NFC) to dictionary for transfer playlist.
         dict[id] = mediaItemPath.precomposedStringWithCanonicalMapping // NFD -> NFC
-        return
+
+        // Append mediaItemPath to walkman_music_folder
+        let dst: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(mediaItemPath)
+        // return // To debug
         
         // CreateDirectory if not exists.
         let parentFolderLocation: URL = dst.deletingLastPathComponent()
