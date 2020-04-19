@@ -61,7 +61,6 @@ class iTunesTransfer {
         let allSongItems: [ITLibMediaItem] = library.allMediaItems.filter({$0.mediaKind == ITLibMediaItemMediaKind.kindSong})
         for item: ITLibMediaItem in allSongItems {
             transfer(mediaItem: item)
-            return
         }
         
         // Transfer Playlists
@@ -111,7 +110,7 @@ class iTunesTransfer {
             mediaItemPath.replaceSubrange(range, with: "")
         }
         // Add Playlist
-        dict[id] = mediaItemPath
+        dict[id] = mediaItemPath.precomposedStringWithCanonicalMapping // NFD -> NFC
         let dst: URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(mediaItemPath)
         
         // CreateDirectory
