@@ -2,6 +2,7 @@
 Transfers music and playlist to WALKMAN from Mac Music.app
 
 ## TODO/BUG
+- (BUG) ファイルの更新時間の差が1sになっているので、コピーされてしまう問題
 - (TODO) エラー処理
 - (TODO) ロジックとUIの分離
 - (TODO) プログレスバー

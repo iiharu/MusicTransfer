@@ -160,10 +160,10 @@ class iTunesTransfer : ObservableObject {
         for (_, (src, dst)) in copy_location_map {
             
             // destination
-            let destinationItemLocation: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(dst)
+            let dstLocation: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(dst)
             
             // parentFolderLocation
-            let parentFolderLocation: URL = destinationItemLocation.deletingLastPathComponent()
+            let parentFolderLocation: URL = dstLocation.deletingLastPathComponent()
 
             // Create parentFolderLocation does not exists.
             if (!fileManager.fileExists(atPath: parentFolderLocation.path, isDirectory: &isDir)) {
@@ -180,23 +180,30 @@ class iTunesTransfer : ObservableObject {
             }
             
             // CopyItem
-            var willCopy: Bool = true
-            do {
-                if (fileManager.fileExists(atPath: destinationItemLocation.path)) {
-                    let srcModificationDate = try fileManager.attributesOfItem(atPath: src.path)[FileAttributeKey.modificationDate] as! Date
-                    let dstModificationData = try fileManager.attributesOfItem(atPath: destinationItemLocation.path)[FileAttributeKey.modificationDate] as! Date
-                    if (dstModificationData > srcModificationDate) {
-                        willCopy = false
+            // Copy if dst does not exist or src is newer than dst
+            var srcModificationDate: Date = Date()
+            var dstModificationDate: Date = Date()
+            if (fileManager.fileExists(atPath: dstLocation.path)) {
+                do {
+                    //let
+                    srcModificationDate = try fileManager.attributesOfItem(atPath: src.path)[FileAttributeKey.modificationDate] as! Date
+                    //let
+                    dstModificationDate = try fileManager.attributesOfItem(atPath: dstLocation.path)[FileAttributeKey.modificationDate] as! Date
+
+                    // +- 10sとかを同じ範囲にする
+                    // intervalが60s以下であれば、OKとかか
+                    if (srcModificationDate <= dstModificationDate) {
+                        continue
                     }
+                } catch(let e) {
+                    print(e)
                 }
-            } catch (let e) {
-                print(e)
             }
             do {
-                if (willCopy) {
-                    try fileManager.copyItem(at: src, to: destinationItemLocation)
-                }
-            } catch (let e) {
+                try fileManager.copyItem(at: src, to: dstLocation)
+            } catch(let e) {
+                print(srcModificationDate) // 2018-11-02 16:10:37 +0000
+                print(dstModificationDate) // 2018-11-02 16:10:36 +0000
                 print(e)
             }
         }
