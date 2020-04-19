@@ -211,7 +211,7 @@
 			attributes = {
 				LastSwiftUpdateCheck = 1140;
 				LastUpgradeCheck = 1140;
-				ORGANIZATIONNAME = "Yasuharu Iida";
+				ORGANIZATIONNAME = io.github.iiharu;
 				TargetAttributes = {
 					2CEFF8FC2434068E00F0D0D7 = {
 						CreatedOnToolsVersion = 11.4;
@@ -457,7 +457,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
-				PRODUCT_BUNDLE_IDENTIFIER = jp.ac.tus.alumni.iiharu.MusicTransfer;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.iiharu.MusicTransfer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 			};
@@ -481,7 +481,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
-				PRODUCT_BUNDLE_IDENTIFIER = jp.ac.tus.alumni.iiharu.MusicTransfer;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.iiharu.MusicTransfer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 			};
@@ -502,7 +502,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
-				PRODUCT_BUNDLE_IDENTIFIER = jp.ac.tus.alumni.iiharu.MusicTransferTests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.iiharu.MusicTransferTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MusicTransfer.app/Contents/MacOS/MusicTransfer";
@@ -524,7 +524,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
-				PRODUCT_BUNDLE_IDENTIFIER = jp.ac.tus.alumni.iiharu.MusicTransferTests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.iiharu.MusicTransferTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MusicTransfer.app/Contents/MacOS/MusicTransfer";
@@ -544,7 +544,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = jp.ac.tus.alumni.iiharu.MusicTransferUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.iiharu.MusicTransferUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_TARGET_NAME = MusicTransfer;
@@ -564,7 +564,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = jp.ac.tus.alumni.iiharu.MusicTransferUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.iiharu.MusicTransferUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_TARGET_NAME = MusicTransfer;
