@@ -40,6 +40,8 @@ class iTunesTransfer {
     var apiVersion: String = "1.1"
     // FileManager
     let fileManager: FileManager = FileManager.default
+    // Character Set
+    let char_set: CharacterSet = .urlQueryAllowed
     // SongDict persistentID -> NFC Normalized path from /Volumes/WALKMAN/MUSIC
     var dict: Dictionary<NSNumber, String> = [:]
     
@@ -61,7 +63,10 @@ class iTunesTransfer {
         let allSongItems: [ITLibMediaItem] = library.allMediaItems.filter({$0.mediaKind == ITLibMediaItemMediaKind.kindSong})
         for item: ITLibMediaItem in allSongItems {
             transfer(mediaItem: item)
+            return // TO DEBUG
         }
+        
+        return // TO DEBUG
         
         // Transfer Playlists
         print("Transfer Playlists")
@@ -69,6 +74,83 @@ class iTunesTransfer {
         for list: ITLibPlaylist in allPlaylist {
             transfer(playlist: list)
         }
+    }
+    
+    // Encode String with percent-encoding.
+    // This is wrapper of String.addingPercentEncoding.
+    func encode_with_percent(str: String, char_set: CharacterSet) -> String {
+        guard let dst = str.addingPercentEncoding(withAllowedCharacters: char_set) else {
+            return ""
+        }
+        return dst
+    }
+
+    // Encode String for transfer
+    // - Replace '/' (not path separater) with '_'
+    // - Encode with percent-encoding
+    func encode(src: String) -> String {
+        // Replace '/' with '_'
+        var str:String = src
+        while ((str.range(of: "/")) != nil) {
+            if let range = str.range(of: "/") {
+                str.replaceSubrange(range, with: "_")
+            }
+        }
+        // Encode with percent encoding
+        guard let dst = str.addingPercentEncoding(withAllowedCharacters: self.char_set) else {
+            return "" // TODO: raise Error
+        }
+        return dst
+    }
+    
+    func get_copy_dst(mediaItem: ITLibMediaItem) -> URL? {
+        
+        // Copy Destination
+        var copy_dst = URL(string: walkman_music_folder)
+        
+        // Album
+        let album:ITLibAlbum = mediaItem.album
+        
+        // Artist
+        var albumArtist:String = ""
+        if (album.albumArtist != nil) {
+            albumArtist = album.albumArtist!
+        } else {
+            if (album.isCompilation) {
+                albumArtist = "Compilation"
+            } else if (mediaItem.artist?.name != nil) {
+                albumArtist = mediaItem.artist!.name!
+            }
+        }
+        albumArtist = encode(src: albumArtist)
+        
+        // Title
+        var albumTitle: String = ""
+        if (album.title != nil) {
+            albumTitle = album.title!
+        }
+        // print(albumTitle)
+        albumTitle = encode(src: albumTitle)
+        
+        // FileName
+        guard var fileName: String = mediaItem.location?.lastPathComponent else {
+            print("mediaItem's location is nil")
+            return nil // TODO: raise Error
+        }
+//        var fileName: String = ""
+//        if (mediaItem.location?.lastPathComponent != nil) {
+//            fileName = mediaItem.location!.lastPathComponent
+//        } else {
+//            print("mediaItem's location is nil")
+//            return nil // TODO: raise Error
+//        }
+        fileName = encode(src: fileName)
+        
+        copy_dst?.appendPathComponent(albumArtist, isDirectory: true)
+        copy_dst?.appendPathComponent(albumTitle, isDirectory: true)
+        copy_dst?.appendPathComponent(fileName, isDirectory: false)
+        
+        return copy_dst
     }
     
     // Transfer MediaItem
