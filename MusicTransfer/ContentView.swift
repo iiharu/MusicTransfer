@@ -10,16 +10,20 @@ import SwiftUI
 import iTunesLibrary
 
 struct ContentView: View {
-    let transfer: iTunesTransfer = iTunesTransfer()
-    @State var walkman_music_folder: String = ""
+    @ObservedObject var transfer: iTunesTransfer = iTunesTransfer()
     @State var is_transfering: Bool = false
     var body: some View {
         VStack{
             Text("WALKMAN MUSIC folder (such as /Volumes/WALKMAN/MUSIC)")
-            TextField("/Volumes/WALKMAN/MUSIC", text: $walkman_music_folder).textFieldStyle(RoundedBorderTextFieldStyle()).padding()
+            // when on commit -> validate
+            TextField("/Volumes/WALKMAN/MUSIC",
+                      text: .init(get: {self.transfer.walkman_music_folder},
+                                  set: {self.transfer.walkman_music_folder = $0})
+                        ).textFieldStyle(RoundedBorderTextFieldStyle()).padding()
+            Text("Input: \(transfer.walkman_music_folder)")
+            Text(transfer.is_transfering ? "True" : "False")
             Button(action: {
-                self.transfer.set_walkman_music_folder(dir: self.walkman_music_folder)
-                // self.transfer.transfer()
+                self.transfer.transfer()
             }) {Text("Transfer!")}
         }
     }
@@ -34,25 +38,28 @@ struct ContentView_Previews: PreviewProvider {
 
 
 // iTunes Transfer
-class iTunesTransfer {
-    
+// 依存しないロジックなどを分離したい
+class iTunesTransfer : ObservableObject {
     // Walkman Music Folder
-    private (set) public var walkman_music_folder: String = "/Volumes/WALKMAN/MUSIC"
     // apiVersion ("1.0" -> iTunes.app, "1.1" -> Music.app)
     private var apiVersion: String = "1.1"
+    @Published var walkman_music_folder: String = "/Volumes/WALKMAN/MUSIC"
+    // apiVersion
     // FileManager
     private let fileManager: FileManager = FileManager.default
     // SongDict persistentID -> NFC Normalized path from /Volumes/WALKMAN/MUSIC
     private var dict: Dictionary<NSNumber, String> = [:]
     // wheter transfering now
-    private var is_transfering: Bool = false
+    @Published var is_transfering: Bool = false
+    
+    // Error Stack
     
     init() {}
     
     init(walkman_music_folder: String) {
         if (walkman_music_folder != "") {
             self.walkman_music_folder = walkman_music_folder
-            // self.walkman_music_folder = "/Users/iiharu/Desktop/WALKMAN/MUSIC" // to debug
+            self.walkman_music_folder = "/Users/iiharu/Desktop/WALKMAN/MUSIC" // to debug
         }
     }
     
@@ -65,12 +72,14 @@ class iTunesTransfer {
             print("no such directory \(dir)")
             return // TODO: raise Error
         }
-
+        
         
     }
     
     // Transfer Library
     func transfer() {
+        
+        print("transfer")
         
         is_transfering = true
         
@@ -83,6 +92,7 @@ class iTunesTransfer {
             is_transfering = false
             return // TODO: raise Error
         }
+        return // to debug
         
         // ITLibrary
         guard let library: ITLibrary = try? ITLibrary(apiVersion: apiVersion) else {
@@ -110,7 +120,7 @@ class iTunesTransfer {
         is_transfering = false
         return
     }
-
+    
     // Replace `/` with `_`
     private func replace_slash_with_underscore(str: String) -> String {
         var _str: String = str
@@ -121,7 +131,7 @@ class iTunesTransfer {
         }
         return _str
     }
-
+    
     // Get copy_dst (relative path from /Volumes/WALKMAN/MUSIC)
     private func get_copy_dst(item: ITLibMediaItem) -> String? {
         // Album
@@ -152,7 +162,7 @@ class iTunesTransfer {
         fileName = replace_slash_with_underscore(str: fileName)
         
         let copy_dst = albumArtist + "/" + albumTitle + "/" + fileName
-
+        
         return copy_dst
     }
     
@@ -180,10 +190,10 @@ class iTunesTransfer {
             print("get_copy_dst failed")
             return // TODO: raise Error
         }
-
+        
         // Register mediaItemPath (UNICDOE NFC) to dictionary for transfer playlist.
         dict[id] = mediaItemPath.precomposedStringWithCanonicalMapping // NFD -> NFC
-
+        
         // Append mediaItemPath to walkman_music_folder
         let dst: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(mediaItemPath)
         // return // To debug
