@@ -61,7 +61,10 @@ class iTunesTransfer {
         let allSongItems: [ITLibMediaItem] = library.allMediaItems.filter({$0.mediaKind == ITLibMediaItemMediaKind.kindSong})
         for item: ITLibMediaItem in allSongItems {
             transfer(mediaItem: item)
+            //return // TO DEBUG
         }
+        
+        //return // TO DEBUG
         
         // Transfer Playlists
         print("Transfer Playlists")
@@ -69,6 +72,60 @@ class iTunesTransfer {
         for list: ITLibPlaylist in allPlaylist {
             transfer(playlist: list)
         }
+    }
+    
+    // Encode String with percent-encoding.
+    // This is wrapper of String.addingPercentEncoding.
+    func encode_with_percent(str: String, char_set: CharacterSet) -> String {
+        guard let dst = str.addingPercentEncoding(withAllowedCharacters: char_set) else {
+            return ""
+        }
+        return dst
+    }
+
+    // Replace `/` with `_`
+    func replace_slash_with_underscore(str: String) -> String {
+        var _str: String = str
+        while ((_str.range(of: "/")) != nil) {
+            if let range = _str.range(of: "/") {
+                _str.replaceSubrange(range, with: "_")
+            }
+        }
+        return _str
+    }
+
+    // Get copy_dst (relative path from /Volumes/WALKMAN/MUSIC)
+    func get_copy_dst(item: ITLibMediaItem) -> String? {
+        // Album
+        let album: ITLibAlbum = item.album
+        
+        // Artist
+        var albumArtist: String = ""
+        if (album.albumArtist != nil) {
+            albumArtist = album.albumArtist!
+        } else {
+            if (album.isCompilation) {
+                albumArtist = "Compilation"
+            } else if (item.artist?.name != nil) {
+                albumArtist = item.artist!.name!
+            }
+        }
+        albumArtist = replace_slash_with_underscore(str: albumArtist)
+        
+        // Title
+        var albumTitle: String = album.title ?? ""
+        albumTitle = replace_slash_with_underscore(str: albumTitle)
+        
+        // FileName
+        guard var fileName: String = item.location?.lastPathComponent else {
+            print("mediaItem's location is nil")
+            return nil // TODO: raise Error
+        }
+        fileName = replace_slash_with_underscore(str: fileName)
+        
+        let copy_dst = albumArtist + "/" + albumTitle + "/" + fileName
+
+        return copy_dst
     }
     
     // Transfer MediaItem
@@ -90,31 +147,18 @@ class iTunesTransfer {
         // src
         let src: URL = location
         
-        // dst
-        let homeFolderLocation: URL = fileManager.homeDirectoryForCurrentUser
-        var mediaFolderLocation: URL = homeFolderLocation
-        if (atof(apiVersion) > 1.0) {
-            for d in ["Music", "Music", "Media.localized", "Music"]
-            {
-                mediaFolderLocation.appendPathComponent(d, isDirectory: true)
-            }
-        } else {
-            for d in ["Music", "iTunes", "iTunes Media"]
-            {
-                mediaFolderLocation.appendPathComponent(d, isDirectory: true)
-            }
+        // mediaItemPath
+        guard let mediaItemPath: String = get_copy_dst(item: mediaItem) else {
+            print("get_copy_dst failed")
+            return // TODO: raise Error
         }
-        
-        // MediaItemPath (path from /Volumes/WALKMAN/MUSIC/)
-        var mediaItemPath: String = src.path
-        if let range = mediaItemPath.range(of: (mediaFolderLocation.path + "/")) {
-            mediaItemPath.replaceSubrange(range, with: "")
-        }
-        // Add Playlist
-        // Registar mediaItem path to dictionary for transfering playlist.
+
+        // Register mediaItemPath (UNICDOE NFC) to dictionary for transfer playlist.
         dict[id] = mediaItemPath.precomposedStringWithCanonicalMapping // NFD -> NFC
-        // dst (`copy to` path form /)
-        let dst: URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(mediaItemPath)
+
+        // Append mediaItemPath to walkman_music_folder
+        let dst: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(mediaItemPath)
+        // return // To debug
         
         // CreateDirectory if not exists.
         let parentFolderLocation: URL = dst.deletingLastPathComponent()
