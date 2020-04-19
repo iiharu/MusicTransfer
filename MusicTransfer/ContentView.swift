@@ -40,7 +40,7 @@ class iTunesTransfer {
     var apiVersion: String = "1.1"
     // FileManager
     let fileManager: FileManager = FileManager.default
-    // SongDict
+    // SongDict persistentID -> NFC Normalized path from /Volumes/WALKMAN/MUSIC
     var dict: Dictionary<NSNumber, String> = [:]
     
     init() {}
@@ -81,12 +81,13 @@ class iTunesTransfer {
         
         // Track
         let id: NSNumber = mediaItem.persistentID
+        // Returns if mediaItem.location is nil.
         guard let location: URL = mediaItem.location else {
             print("mediaItem's location is nil")
             return
         }
         
-        // src
+        // src
         let src: URL = location
         
         // dst
@@ -104,16 +105,18 @@ class iTunesTransfer {
             }
         }
         
-        // MediaItemPath
+        // MediaItemPath (path from /Volumes/WALKMAN/MUSIC/)
         var mediaItemPath: String = src.path
         if let range = mediaItemPath.range(of: (mediaFolderLocation.path + "/")) {
             mediaItemPath.replaceSubrange(range, with: "")
         }
         // Add Playlist
+        // Registar mediaItem path to dictionary for transfering playlist.
         dict[id] = mediaItemPath.precomposedStringWithCanonicalMapping // NFD -> NFC
+        // dst (`copy to` path form /)
         let dst: URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(mediaItemPath)
         
-        // CreateDirectory
+        // CreateDirectory if not exists.
         let parentFolderLocation: URL = dst.deletingLastPathComponent()
         var isDir: ObjCBool = ObjCBool(false)
         if (fileManager.fileExists(atPath: dst.path, isDirectory: &isDir) && !isDir.boolValue) {
@@ -159,10 +162,10 @@ class iTunesTransfer {
             return
         }
         
-        // M3U8
+        // M3U8 path
         let m3u8: URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(playlist.name + ".M3U8")
         
-        // Contents
+        // M3U8 Contents
         var contents: String = "#EXTM3U\n"
         for item: String? in items {
             contents.append(contentsOf: "#EXTINF:,\n")
