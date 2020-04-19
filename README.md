@@ -1,13 +1,10 @@
 # MusicTransfer
 Transfers music and playlist to WALKMAN from Mac Music.app
 
-## 既知の問題
-
-
-### TODO
-- 転送中の挙動
-- プログレスバー
-- プレイリストを選択
+## TODO/BUG
+- (TODO) エラー処理
+- (TODO) プログレスバー
+- (TODO) プレイリストを選択
 
 ## 更新履歴
 - 整理済み以外のライブラリに対応　([04713d8](https://github.com/iiharu/MusicTransfer/commit/04713d8ba74949dc47e8ddd6af34393775eb48f6), [072fff1](https://github.com/iiharu/MusicTransfer/commit/072fff1653fb39f683d21d4be026978020f90bc0))

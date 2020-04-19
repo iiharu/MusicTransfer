@@ -10,14 +10,16 @@ import SwiftUI
 import iTunesLibrary
 
 struct ContentView: View {
-    @State var walkman_music_folder = ""
+    let transfer: iTunesTransfer = iTunesTransfer()
+    @State var walkman_music_folder: String = ""
+    @State var is_transfering: Bool = false
     var body: some View {
         VStack{
             Text("WALKMAN MUSIC folder (such as /Volumes/WALKMAN/MUSIC)")
             TextField("/Volumes/WALKMAN/MUSIC", text: $walkman_music_folder).textFieldStyle(RoundedBorderTextFieldStyle()).padding()
-            Button(action:{
-                let transfer = iTunesTransfer(walkman_music_folder: self.walkman_music_folder)
-                transfer.transfer()
+            Button(action: {
+                self.transfer.set_walkman_music_folder(dir: self.walkman_music_folder)
+                // self.transfer.transfer()
             }) {Text("Transfer!")}
         }
     }
@@ -35,26 +37,58 @@ struct ContentView_Previews: PreviewProvider {
 class iTunesTransfer {
     
     // Walkman Music Folder
-    var walkman_music_folder: String = "/Volumes/WALKMAN/MUSIC"
+    private (set) public var walkman_music_folder: String = "/Volumes/WALKMAN/MUSIC"
     // apiVersion ("1.0" -> iTunes.app, "1.1" -> Music.app)
-    var apiVersion: String = "1.1"
+    private var apiVersion: String = "1.1"
     // FileManager
-    let fileManager: FileManager = FileManager.default
+    private let fileManager: FileManager = FileManager.default
     // SongDict persistentID -> NFC Normalized path from /Volumes/WALKMAN/MUSIC
-    var dict: Dictionary<NSNumber, String> = [:]
+    private var dict: Dictionary<NSNumber, String> = [:]
+    // wheter transfering now
+    private var is_transfering: Bool = false
     
     init() {}
     
     init(walkman_music_folder: String) {
         if (walkman_music_folder != "") {
             self.walkman_music_folder = walkman_music_folder
+            // self.walkman_music_folder = "/Users/iiharu/Desktop/WALKMAN/MUSIC" // to debug
         }
+    }
+    
+    func set_walkman_music_folder(dir: String) {
+        var isDir: ObjCBool = ObjCBool(false)
+        
+        if (fileManager.fileExists(atPath: dir, isDirectory: &isDir) && isDir.boolValue) {
+            self.walkman_music_folder = dir
+        } else {
+            print("no such directory \(dir)")
+            return // TODO: raise Error
+        }
+
+        
     }
     
     // Transfer Library
     func transfer() {
+        
+        is_transfering = true
+        
+        // Check walkman_music_folder
+        var isDir: ObjCBool = ObjCBool(false)
+        if (fileManager.fileExists(atPath: self.walkman_music_folder, isDirectory: &isDir) && isDir.boolValue) {
+            print("walkman_music_folder is exitst")
+        } else {
+            print("no such directory \(self.walkman_music_folder)")
+            is_transfering = false
+            return // TODO: raise Error
+        }
+        
         // ITLibrary
-        guard let library: ITLibrary = try? ITLibrary(apiVersion: apiVersion) else {return} // raise Exception
+        guard let library: ITLibrary = try? ITLibrary(apiVersion: apiVersion) else {
+            is_transfering = false
+            return // TODO: raise Error
+        }
         // AllSongItems
         
         // Transfer Songs
@@ -72,10 +106,13 @@ class iTunesTransfer {
         for list: ITLibPlaylist in allPlaylist {
             transfer(playlist: list)
         }
+        
+        is_transfering = false
+        return
     }
 
     // Replace `/` with `_`
-    func replace_slash_with_underscore(str: String) -> String {
+    private func replace_slash_with_underscore(str: String) -> String {
         var _str: String = str
         while ((_str.range(of: "/")) != nil) {
             if let range = _str.range(of: "/") {
@@ -86,7 +123,7 @@ class iTunesTransfer {
     }
 
     // Get copy_dst (relative path from /Volumes/WALKMAN/MUSIC)
-    func get_copy_dst(item: ITLibMediaItem) -> String? {
+    private func get_copy_dst(item: ITLibMediaItem) -> String? {
         // Album
         let album: ITLibAlbum = item.album
         
