@@ -73,15 +73,6 @@ class iTunesTransfer {
             transfer(playlist: list)
         }
     }
-    
-    // Encode String with percent-encoding.
-    // This is wrapper of String.addingPercentEncoding.
-    func encode_with_percent(str: String, char_set: CharacterSet) -> String {
-        guard let dst = str.addingPercentEncoding(withAllowedCharacters: char_set) else {
-            return ""
-        }
-        return dst
-    }
 
     // Replace `/` with `_`
     func replace_slash_with_underscore(str: String) -> String {
