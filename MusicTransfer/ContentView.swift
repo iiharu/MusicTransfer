@@ -10,16 +10,20 @@ import SwiftUI
 import iTunesLibrary
 
 struct ContentView: View {
-    let transfer: iTunesTransfer = iTunesTransfer()
-    @State var walkman_music_folder: String = ""
+    @ObservedObject var transfer: iTunesTransfer = iTunesTransfer()
     @State var is_transfering: Bool = false
     var body: some View {
         VStack{
             Text("WALKMAN MUSIC folder (such as /Volumes/WALKMAN/MUSIC)")
-            TextField("/Volumes/WALKMAN/MUSIC", text: $walkman_music_folder).textFieldStyle(RoundedBorderTextFieldStyle()).padding()
+            // when on commit -> validate
+            TextField("/Volumes/WALKMAN/MUSIC",
+                      text: .init(get: {self.transfer.walkman_music_folder},
+                                  set: {self.transfer.walkman_music_folder = $0})
+            ).textFieldStyle(RoundedBorderTextFieldStyle()).padding()
+            Text("Input: \(transfer.walkman_music_folder)")
+            Text(transfer.is_transfering ? "True" : "False")
             Button(action: {
-                self.transfer.set_walkman_music_folder(dir: self.walkman_music_folder)
-                // self.transfer.transfer()
+                self.transfer.transfer()
             }) {Text("Transfer!")}
         }
     }
@@ -34,85 +38,30 @@ struct ContentView_Previews: PreviewProvider {
 
 
 // iTunes Transfer
-class iTunesTransfer {
-    
+// 依存しないロジックなどを分離したい
+class iTunesTransfer : ObservableObject {
     // Walkman Music Folder
-    private (set) public var walkman_music_folder: String = "/Volumes/WALKMAN/MUSIC"
+    @Published var walkman_music_folder: String = "/Volumes/WALKMAN/MUSIC"
     // apiVersion ("1.0" -> iTunes.app, "1.1" -> Music.app)
     private var apiVersion: String = "1.1"
     // FileManager
     private let fileManager: FileManager = FileManager.default
+    
     // SongDict persistentID -> NFC Normalized path from /Volumes/WALKMAN/MUSIC
     private var dict: Dictionary<NSNumber, String> = [:]
+    
+    // Copy Location Map (persistentID -> (Copy src, Copy dst (NFD))
+    private var copy_location_map: Dictionary<NSNumber, (src: URL, dst: String)> = [:]
+    
+    // Playlist Map (name -> [NSNumber])
+    private var playlist_map: Dictionary<String, [NSNumber]> = [:]
+    
     // wheter transfering now
-    private var is_transfering: Bool = false
+    @Published var is_transfering: Bool = false
     
-    init() {}
-    
-    init(walkman_music_folder: String) {
-        if (walkman_music_folder != "") {
-            self.walkman_music_folder = walkman_music_folder
-            // self.walkman_music_folder = "/Users/iiharu/Desktop/WALKMAN/MUSIC" // to debug
-        }
-    }
-    
-    func set_walkman_music_folder(dir: String) {
-        var isDir: ObjCBool = ObjCBool(false)
-        
-        if (fileManager.fileExists(atPath: dir, isDirectory: &isDir) && isDir.boolValue) {
-            self.walkman_music_folder = dir
-        } else {
-            print("no such directory \(dir)")
-            return // TODO: raise Error
-        }
-
-        
-    }
-    
-    // Transfer Library
-    func transfer() {
-        
-        is_transfering = true
-        
-        // Check walkman_music_folder
-        var isDir: ObjCBool = ObjCBool(false)
-        if (fileManager.fileExists(atPath: self.walkman_music_folder, isDirectory: &isDir) && isDir.boolValue) {
-            print("walkman_music_folder is exitst")
-        } else {
-            print("no such directory \(self.walkman_music_folder)")
-            is_transfering = false
-            return // TODO: raise Error
-        }
-        
-        // ITLibrary
-        guard let library: ITLibrary = try? ITLibrary(apiVersion: apiVersion) else {
-            is_transfering = false
-            return // TODO: raise Error
-        }
-        // AllSongItems
-        
-        // Transfer Songs
-        let allSongItems: [ITLibMediaItem] = library.allMediaItems.filter({$0.mediaKind == ITLibMediaItemMediaKind.kindSong})
-        for item: ITLibMediaItem in allSongItems {
-            transfer(mediaItem: item)
-            //return // TO DEBUG
-        }
-        
-        //return // TO DEBUG
-        
-        // Transfer Playlists
-        print("Transfer Playlists")
-        let allPlaylist: [ITLibPlaylist] = library.allPlaylists.filter({$0.isMaster != true}).filter({$0.items.count > 0})
-        for list: ITLibPlaylist in allPlaylist {
-            transfer(playlist: list)
-        }
-        
-        is_transfering = false
-        return
-    }
-
+    // Class Method
     // Replace `/` with `_`
-    private func replace_slash_with_underscore(str: String) -> String {
+    private class func replace_slash_with_underscore(str: String) -> String {
         var _str: String = str
         while ((_str.range(of: "/")) != nil) {
             if let range = _str.range(of: "/") {
@@ -121,141 +70,176 @@ class iTunesTransfer {
         }
         return _str
     }
-
-    // Get copy_dst (relative path from /Volumes/WALKMAN/MUSIC)
-    private func get_copy_dst(item: ITLibMediaItem) -> String? {
+    
+    // Get dst (NFD) from item (relative path from WALKMAN_MUSIC_FOLDER (/Volumes/WALKMAN/MUSIC))
+    private class func get_dst_from_item(item: ITLibMediaItem) -> String? {
         // Album
         let album: ITLibAlbum = item.album
         
         // Artist
-        var albumArtist: String = ""
+        var artist: String = ""
         if (album.albumArtist != nil) {
-            albumArtist = album.albumArtist!
+            artist = album.albumArtist!
         } else {
             if (album.isCompilation) {
-                albumArtist = "Compilation"
+                artist = "Compilation"
             } else if (item.artist?.name != nil) {
-                albumArtist = item.artist!.name!
+                artist = item.artist!.name!
             }
         }
-        albumArtist = replace_slash_with_underscore(str: albumArtist)
+        artist = replace_slash_with_underscore(str: artist)
         
         // Title
-        var albumTitle: String = album.title ?? ""
-        albumTitle = replace_slash_with_underscore(str: albumTitle)
+        var title: String = album.title ?? ""
+        title = replace_slash_with_underscore(str: title)
         
-        // FileName
-        guard var fileName: String = item.location?.lastPathComponent else {
+        // File Name
+        guard var name: String = item.location?.lastPathComponent else {
             print("mediaItem's location is nil")
             return nil // TODO: raise Error
         }
-        fileName = replace_slash_with_underscore(str: fileName)
+        name = replace_slash_with_underscore(str: name)
         
-        let copy_dst = albumArtist + "/" + albumTitle + "/" + fileName
-
-        return copy_dst
+        let dst:String = artist + "/" + title + "/" + name
+        
+        return dst
     }
     
-    // Transfer MediaItem
-    func transfer(mediaItem: ITLibMediaItem) {
-        // Returns mediaItem is not song.
-        if (mediaItem.mediaKind != ITLibMediaItemMediaKind.kindSong) {
-            print("mediaItem is not song")
-            return
+    func get_file_modification_interval(src: String, dst: String) -> TimeInterval? {
+        if (!fileManager.fileExists(atPath: src) || !fileManager.fileExists(atPath: dst)) {
+            return nil
         }
         
-        // Track
-        let id: NSNumber = mediaItem.persistentID
-        // Returns if mediaItem.location is nil.
-        guard let location: URL = mediaItem.location else {
-            print("mediaItem's location is nil")
-            return
+        do {
+            let srcModificationDate: Date = try fileManager.attributesOfItem(atPath: src)[FileAttributeKey.modificationDate] as! Date
+            let dstModificaitonDate: Date = try fileManager.attributesOfItem(atPath: dst)[FileAttributeKey.modificationDate] as! Date
+            let interval = srcModificationDate.timeIntervalSince(dstModificaitonDate)
+            return interval
+        } catch (let e) {
+            print(e)
+            return nil
+        }
+    }
+    
+    // Constructor
+    init() {
+        guard let library: ITLibrary = try? ITLibrary(apiVersion: apiVersion) else {
+            print("Initialization ITLibrary failed.")
+            return // TODO: raise Error
         }
         
-        // src
-        let src: URL = location
+        // Songs
+        // allSongItems
+        let allSongItems: [ITLibMediaItem] = library.allMediaItems.filter({$0.mediaKind == ITLibMediaItemMediaKind.kindSong && $0.location != nil})
+        for item: ITLibMediaItem in allSongItems {
+            // ID
+            let id: NSNumber = item.persistentID
+            // src (location)
+            guard let src: URL = item.location else {
+                print("ITLibMediaItem's location is nil.")
+                return // TODO: raise Error
+            }
+            // dst (relative path from /Volumes/WALKMAN/MUSIC)
+            guard let dst: String = iTunesTransfer.get_dst_from_item(item: item) else {
+                print("Set destination is failed.")
+                return // TODO: raise Error
+            }
+            
+            // Insert (src, dst) tuple to copy_location_map
+            // CAUTION: dst is NFD (Normalization Form Canonical Decomposition)
+            copy_location_map[id] = (src, dst)
+        }
         
-        // mediaItemPath
-        guard let mediaItemPath: String = get_copy_dst(item: mediaItem) else {
-            print("get_copy_dst failed")
+        // Playlists
+        // allPlaylist
+        let allPlaylist: [ITLibPlaylist] = library.allPlaylists.filter({$0.isMaster != true && $0.items.count > 0})
+        for playlist: ITLibPlaylist in allPlaylist {
+            // Track IDs
+            let ids: [NSNumber] = playlist.items.map({$0.persistentID})
+            // Insert (name, ids) pair to playlist map
+            playlist_map[playlist.name] = ids
+        }
+    }
+    
+    // Instance Method
+    func transfer () -> Void {
+        
+        var isDir: ObjCBool = ObjCBool(false)
+        
+        // Check WALKMAN_MUSIC_FOLDER
+        if (!fileManager.fileExists(atPath: self.walkman_music_folder, isDirectory: &isDir) || !isDir.boolValue) {
+            print("No such directory \(self.walkman_music_folder)")
             return // TODO: raise Error
         }
 
-        // Register mediaItemPath (UNICDOE NFC) to dictionary for transfer playlist.
-        dict[id] = mediaItemPath.precomposedStringWithCanonicalMapping // NFD -> NFC
+        // Transfer Songs
+        for (_, (src, dst)) in copy_location_map {
+            
+            // destination
+            let dstLocation: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(dst)
+            
+            // parentFolderLocation
+            let parentFolderLocation: URL = dstLocation.deletingLastPathComponent()
 
-        // Append mediaItemPath to walkman_music_folder
-        let dst: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(mediaItemPath)
-        // return // To debug
-        
-        // CreateDirectory if not exists.
-        let parentFolderLocation: URL = dst.deletingLastPathComponent()
-        var isDir: ObjCBool = ObjCBool(false)
-        if (fileManager.fileExists(atPath: dst.path, isDirectory: &isDir) && !isDir.boolValue) {
-            print("\(parentFolderLocation.path) is exsists, but it is not directory")
-            return
-        }
-        do {
-            try fileManager.createDirectory(at: parentFolderLocation, withIntermediateDirectories: true, attributes: nil)
-        }
-        catch (let e) {
-            print(e)
-        }
-        
-        // CopyItem
-        var willCopy: Bool = true
-        do {
-            if (fileManager.fileExists(atPath: dst.path)) {
-                let srcModificationDate = try fileManager.attributesOfItem(atPath: src.path)[FileAttributeKey.modificationDate] as! Date
-                let dstModificationDate = try fileManager.attributesOfItem(atPath: dst.path)[FileAttributeKey.modificationDate] as! Date
-                if (dstModificationDate > srcModificationDate) {
-                    willCopy = false
+            // Create parentFolderLocation does not exists.
+            if (!fileManager.fileExists(atPath: parentFolderLocation.path, isDirectory: &isDir)) {
+                // createDirectory
+                do {
+                    try fileManager.createDirectory(at: parentFolderLocation, withIntermediateDirectories: true, attributes: nil)
+                } catch (let e) {
+                    print(e)
+                }
+            } else if (!isDir.boolValue) {
+                // Skip if parentFolderLocation is exist and not folder
+                print("\(parentFolderLocation) exist and not folder")
+                continue // TODO: raise Error
+            }
+            
+            // CopyItem
+            if (fileManager.fileExists(atPath: dstLocation.path)) {
+                // get interval copy src between copy dst
+                guard let interval = get_file_modification_interval(src: src.path, dst: dstLocation.path) else {
+                    continue
+                }
+                // if interval is -60 ~ 60 then skip copy
+                if (abs(interval) < 60) {
+                    continue
                 }
             }
-        } catch(let e) {
-            print(e)
-        }
-        do {
-            if (willCopy) {
-                try fileManager.copyItem(at: src, to: dst)
+            do {
+                try fileManager.copyItem(at: src, to: dstLocation)
+            } catch(let e) {
+                print(e)
             }
-        } catch (let e) {
-            print(e)
         }
         
-    }
-    
-    // Transfer Playlist
-    func transfer(playlist: ITLibPlaylist) {
-        
-        // Filter out nil item
-        let items: [String?] = playlist.items.map({dict[$0.persistentID]}).filter({$0 != nil})
-        if (items.count == 0) {
-            return
-        }
-        
-        // M3U8 path
-        let m3u8: URL = URL(fileURLWithPath: walkman_music_folder).appendingPathComponent(playlist.name + ".M3U8")
-        
-        // M3U8 Contents
-        var contents: String = "#EXTM3U\n"
-        for item: String? in items {
-            contents.append(contentsOf: "#EXTINF:,\n")
-            contents.append(contentsOf: item! + "\n")
-        }
-        
-        // Dump M3U8
-        if (!fileManager.fileExists(atPath: m3u8.path)) {
-            fileManager.createFile(atPath: m3u8.path, contents: nil, attributes: nil)
-        }
-        do {
-            let handle: FileHandle = try FileHandle(forUpdating: m3u8)
-            handle.write(contents.data(using: .utf8)!)
-            handle.closeFile()
-        } catch (let e) {
-            print(e)
+        // Transfer Playlist
+        for (name, ids) in playlist_map {
+            // [NFC String]
+            let items: [String?] = ids.map({copy_location_map[$0]?.dst.precomposedStringWithCanonicalMapping}).filter({$0 != nil})
+            
+            // M3U8
+            let m3u8: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(name + ".M3U8")
+
+            // M3U8 Contents
+            var contents: String = "#EXTM3U\n"
+            for item: String? in items {
+                contents.append(contentsOf: "#EXTINF:,\n")
+                contents.append(contentsOf: item! + "\n")
+            }
+            
+            // Dump M3U8
+            if (!fileManager.fileExists(atPath: m3u8.path)) {
+                fileManager.createFile(atPath: m3u8.path, contents: nil, attributes: nil)
+            }
+            do {
+                let handle: FileHandle = try FileHandle(forUpdating: m3u8)
+                handle.write(contents.data(using: .utf8)!)
+                handle.closeFile()
+            } catch (let e) {
+                print(e)
+            }
         }
     }
-    
 }
 
