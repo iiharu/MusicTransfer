@@ -107,7 +107,6 @@ class iTunesTransfer : ObservableObject {
     
     func get_file_modification_interval(src: String, dst: String) -> TimeInterval? {
         if (!fileManager.fileExists(atPath: src) || !fileManager.fileExists(atPath: dst)) {
-
             return nil
         }
         
@@ -115,9 +114,6 @@ class iTunesTransfer : ObservableObject {
             let srcModificationDate: Date = try fileManager.attributesOfItem(atPath: src)[FileAttributeKey.modificationDate] as! Date
             let dstModificaitonDate: Date = try fileManager.attributesOfItem(atPath: dst)[FileAttributeKey.modificationDate] as! Date
             let interval = srcModificationDate.timeIntervalSince(dstModificaitonDate)
-            print(srcModificationDate)
-            print(dstModificaitonDate)
-            print(interval)
             return interval
         } catch (let e) {
             print(e)
@@ -200,40 +196,19 @@ class iTunesTransfer : ObservableObject {
             }
             
             // CopyItem
-            // Copy if dst does not exist or src is newer than dst
-            var srcModificationDate: Date = Date()
-            var dstModificationDate: Date = Date()
-//            if (fileManager.fileExists(atPath: dstLocation.path)) {
-//                do {
-//                    //let
-//                    srcModificationDate = try fileManager.attributesOfItem(atPath: src.path)[FileAttributeKey.modificationDate] as! Date
-//                    //let
-//                    dstModificationDate = try fileManager.attributesOfItem(atPath: dstLocation.path)[FileAttributeKey.modificationDate] as! Date
-//
-//                    // +- 10sとかを同じ範囲にする
-//                    // intervalが60s以下であれば、OKとかか
-//                    if (srcModificationDate <= dstModificationDate) {
-//                        continue
-//                    }
-//                } catch(let e) {
-//                    print(e)
-//                }
-//            }
-
-            // get interval copy src between copy dst
-            guard let interval = get_file_modification_interval(src: src.path, dst: dstLocation.path) else {
-                continue
-            }
-            
-            // if interval is -60 ~ 60 then skip copy
-            if (abs(interval) < 60) {
-                continue
+            if (fileManager.fileExists(atPath: dstLocation.path)) {
+                // get interval copy src between copy dst
+                guard let interval = get_file_modification_interval(src: src.path, dst: dstLocation.path) else {
+                    continue
+                }
+                // if interval is -60 ~ 60 then skip copy
+                if (abs(interval) < 60) {
+                    continue
+                }
             }
             do {
                 try fileManager.copyItem(at: src, to: dstLocation)
             } catch(let e) {
-                print(srcModificationDate) // 2018-11-02 16:10:37 +0000
-                print(dstModificationDate) // 2018-11-02 16:10:36 +0000
                 print(e)
             }
         }
