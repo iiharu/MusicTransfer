@@ -105,6 +105,25 @@ class iTunesTransfer : ObservableObject {
         return dst
     }
     
+    func get_file_modification_interval(src: String, dst: String) -> TimeInterval? {
+        if (!fileManager.fileExists(atPath: src) || !fileManager.fileExists(atPath: dst)) {
+
+            return nil
+        }
+        
+        do {
+            let srcModificationDate: Date = try fileManager.attributesOfItem(atPath: src)[FileAttributeKey.modificationDate] as! Date
+            let dstModificaitonDate: Date = try fileManager.attributesOfItem(atPath: dst)[FileAttributeKey.modificationDate] as! Date
+            let interval = srcModificationDate.timeIntervalSince(dstModificaitonDate)
+            print(srcModificationDate)
+            print(dstModificaitonDate)
+            print(interval)
+            return interval
+        } catch (let e) {
+            print(e)
+            return nil
+        }
+    }
     
     // Constructor
     init() {
@@ -148,6 +167,7 @@ class iTunesTransfer : ObservableObject {
     
     // Instance Method
     func transfer () -> Void {
+        
         var isDir: ObjCBool = ObjCBool(false)
         
         // Check WALKMAN_MUSIC_FOLDER
@@ -155,7 +175,7 @@ class iTunesTransfer : ObservableObject {
             print("No such directory \(self.walkman_music_folder)")
             return // TODO: raise Error
         }
-        
+
         // Transfer Songs
         for (_, (src, dst)) in copy_location_map {
             
@@ -183,21 +203,31 @@ class iTunesTransfer : ObservableObject {
             // Copy if dst does not exist or src is newer than dst
             var srcModificationDate: Date = Date()
             var dstModificationDate: Date = Date()
-            if (fileManager.fileExists(atPath: dstLocation.path)) {
-                do {
-                    //let
-                    srcModificationDate = try fileManager.attributesOfItem(atPath: src.path)[FileAttributeKey.modificationDate] as! Date
-                    //let
-                    dstModificationDate = try fileManager.attributesOfItem(atPath: dstLocation.path)[FileAttributeKey.modificationDate] as! Date
+//            if (fileManager.fileExists(atPath: dstLocation.path)) {
+//                do {
+//                    //let
+//                    srcModificationDate = try fileManager.attributesOfItem(atPath: src.path)[FileAttributeKey.modificationDate] as! Date
+//                    //let
+//                    dstModificationDate = try fileManager.attributesOfItem(atPath: dstLocation.path)[FileAttributeKey.modificationDate] as! Date
+//
+//                    // +- 10sとかを同じ範囲にする
+//                    // intervalが60s以下であれば、OKとかか
+//                    if (srcModificationDate <= dstModificationDate) {
+//                        continue
+//                    }
+//                } catch(let e) {
+//                    print(e)
+//                }
+//            }
 
-                    // +- 10sとかを同じ範囲にする
-                    // intervalが60s以下であれば、OKとかか
-                    if (srcModificationDate <= dstModificationDate) {
-                        continue
-                    }
-                } catch(let e) {
-                    print(e)
-                }
+            // get interval copy src between copy dst
+            guard let interval = get_file_modification_interval(src: src.path, dst: dstLocation.path) else {
+                continue
+            }
+            
+            // if interval is -60 ~ 60 then skip copy
+            if (abs(interval) < 60) {
+                continue
             }
             do {
                 try fileManager.copyItem(at: src, to: dstLocation)
