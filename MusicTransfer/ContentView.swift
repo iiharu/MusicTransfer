@@ -11,17 +11,18 @@ import iTunesLibrary
 
 struct ContentView: View {
     @ObservedObject var transfer: iTunesTransfer = iTunesTransfer()
-    @State var is_transfering: Bool = false
     var body: some View {
         VStack{
             Text("WALKMAN MUSIC folder (such as /Volumes/WALKMAN/MUSIC)")
             // when on commit -> validate
             TextField("/Volumes/WALKMAN/MUSIC",
-                      text: .init(get: {self.transfer.walkman_music_folder},
-                                  set: {self.transfer.walkman_music_folder = $0})
+                      text: .init(
+                        get:
+                        {self.transfer.walkman_music_folder},
+                        set:
+                        {self.transfer.walkman_music_folder = $0}
+                )
             ).textFieldStyle(RoundedBorderTextFieldStyle()).padding()
-            Text("Input: \(transfer.walkman_music_folder)")
-            Text(transfer.is_transfering ? "True" : "False")
             Button(action: {
                 self.transfer.transfer()
             }) {Text("Transfer!")}
@@ -38,7 +39,6 @@ struct ContentView_Previews: PreviewProvider {
 
 
 // iTunes Transfer
-// 依存しないロジックなどを分離したい
 class iTunesTransfer : ObservableObject {
     // Walkman Music Folder
     @Published var walkman_music_folder: String = "/Volumes/WALKMAN/MUSIC"
@@ -56,8 +56,6 @@ class iTunesTransfer : ObservableObject {
     // Playlist Map (name -> [NSNumber])
     private var playlist_map: Dictionary<String, [NSNumber]> = [:]
     
-    // wheter transfering now
-    @Published var is_transfering: Bool = false
     
     // Class Method
     // Replace `/` with `_`
@@ -105,6 +103,7 @@ class iTunesTransfer : ObservableObject {
         return dst
     }
     
+    // Get src dst modification interval
     func get_file_modification_interval(src: String, dst: String) -> TimeInterval? {
         if (!fileManager.fileExists(atPath: src) || !fileManager.fileExists(atPath: dst)) {
             return nil
@@ -204,6 +203,12 @@ class iTunesTransfer : ObservableObject {
                 // if interval is -60 ~ 60 then skip copy
                 if (abs(interval) < 60) {
                     continue
+                }
+                // copy dst is old then remove dst
+                do {
+                    try fileManager.removeItem(at: dstLocation)
+                } catch (let e) {
+                    print(e)
                 }
             }
             do {
