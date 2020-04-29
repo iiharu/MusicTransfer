@@ -59,17 +59,23 @@ class iTunesTransfer : ObservableObject {
     
     // Class Method
     // Replace special char (`/` and `:`) with `_`
+//    private class func replace_special_char_with_underscore(str: String) -> String {
+//        let escape_pairs = [("/", "_"), (":", "_")]
+//        var ret: String = str
+//        for (src, dst) in escape_pairs {
+//            while ((ret.range(of: src)) != nil) {
+//                if let range = ret.range(of: src) {
+//                    ret.replaceSubrange(range, with: dst)
+//                }
+//            }
+//        }
+//        return ret
+//    }
+    
+    // Replace special char with
     private class func replace_special_char_with_underscore(str: String) -> String {
-        let escape_pairs = [("/", "_"), (":", "_")]
-        var ret: String = str
-        for (src, dst) in escape_pairs {
-            while ((ret.range(of: src)) != nil) {
-                if let range = ret.range(of: src) {
-                    ret.replaceSubrange(range, with: dst)
-                }
-            }
-        }
-        return ret
+        let pattern = "[:/\"?.*<>´’]"
+        return str.replacingOccurrences(of: pattern, with: "_", options: .regularExpression)
     }
     
     // Get dst (NFD) from item (relative path from WALKMAN_MUSIC_FOLDER (/Volumes/WALKMAN/MUSIC))
@@ -151,6 +157,7 @@ class iTunesTransfer : ObservableObject {
             // CAUTION: dst is NFD (Normalization Form Canonical Decomposition)
             copy_location_map[id] = (src, dst)
         }
+        return
         
         // Playlists
         // allPlaylist
