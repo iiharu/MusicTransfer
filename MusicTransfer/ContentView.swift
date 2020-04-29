@@ -74,7 +74,7 @@ class iTunesTransfer : ObservableObject {
     
     // Replace special char with
     private class func replace_special_char_with_underscore(str: String) -> String {
-        let pattern = "[:/\"?.*<>´’]"
+        let pattern = "[\"*./:<>?´’]"
         return str.replacingOccurrences(of: pattern, with: "_", options: .regularExpression)
     }
     
