@@ -58,15 +58,18 @@ class iTunesTransfer : ObservableObject {
     
     
     // Class Method
-    // Replace `/` with `_`
-    private class func replace_slash_with_underscore(str: String) -> String {
-        var _str: String = str
-        while ((_str.range(of: "/")) != nil) {
-            if let range = _str.range(of: "/") {
-                _str.replaceSubrange(range, with: "_")
+    // Replace special char (`/` and `:`) with `_`
+    private class func replace_special_char_with_underscore(str: String) -> String {
+        let escape_pairs = [("/", "_"), (":", "_")]
+        var ret: String = str
+        for (src, dst) in escape_pairs {
+            while ((ret.range(of: src)) != nil) {
+                if let range = ret.range(of: src) {
+                    ret.replaceSubrange(range, with: dst)
+                }
             }
         }
-        return _str
+        return ret
     }
     
     // Get dst (NFD) from item (relative path from WALKMAN_MUSIC_FOLDER (/Volumes/WALKMAN/MUSIC))
@@ -85,18 +88,18 @@ class iTunesTransfer : ObservableObject {
                 artist = item.artist!.name!
             }
         }
-        artist = replace_slash_with_underscore(str: artist)
+        artist = replace_special_char_with_underscore(str: artist)
         
         // Title
         var title: String = album.title ?? ""
-        title = replace_slash_with_underscore(str: title)
+        title = replace_special_char_with_underscore(str: title)
         
         // File Name
         guard var name: String = item.location?.lastPathComponent else {
             print("mediaItem's location is nil")
             return nil // TODO: raise Error
         }
-        name = replace_slash_with_underscore(str: name)
+        name = replace_special_char_with_underscore(str: name)
         
         let dst:String = artist + "/" + title + "/" + name
         
