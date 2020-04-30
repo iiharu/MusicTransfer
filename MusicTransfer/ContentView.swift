@@ -56,25 +56,11 @@ class iTunesTransfer : ObservableObject {
     // Playlist Map (name -> [NSNumber])
     private var playlist_map: Dictionary<String, [NSNumber]> = [:]
     
-    
     // Class Method
-    // Replace special char (`/` and `:`) with `_`
-//    private class func replace_special_char_with_underscore(str: String) -> String {
-//        let escape_pairs = [("/", "_"), (":", "_")]
-//        var ret: String = str
-//        for (src, dst) in escape_pairs {
-//            while ((ret.range(of: src)) != nil) {
-//                if let range = ret.range(of: src) {
-//                    ret.replaceSubrange(range, with: dst)
-//                }
-//            }
-//        }
-//        return ret
-//    }
-    
     // Replace special char with
+    // TODO: replace if last char is `.`
     private class func replace_special_char_with_underscore(str: String) -> String {
-        let pattern = "[\"*./:<>?´’]"
+        let pattern = "[\"*/:<>?´’]"
         return str.replacingOccurrences(of: pattern, with: "_", options: .regularExpression)
     }
     
@@ -157,7 +143,6 @@ class iTunesTransfer : ObservableObject {
             // CAUTION: dst is NFD (Normalization Form Canonical Decomposition)
             copy_location_map[id] = (src, dst)
         }
-        return
         
         // Playlists
         // allPlaylist
