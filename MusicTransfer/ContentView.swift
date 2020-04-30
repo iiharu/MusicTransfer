@@ -58,10 +58,14 @@ class iTunesTransfer : ObservableObject {
     
     // Class Method
     // Replace special char with
-    // TODO: replace if last char is `.`
     private class func replace_special_char_with_underscore(str: String) -> String {
+        var _str: String = str
+        if (_str.hasSuffix(".")) {
+            _str.removeLast()
+            _str.append(contentsOf: "_")
+        }
         let pattern = "[\"*/:<>?´’]"
-        return str.replacingOccurrences(of: pattern, with: "_", options: .regularExpression)
+        return _str.replacingOccurrences(of: pattern, with: "_", options: .regularExpression)
     }
     
     // Get dst (NFD) from item (relative path from WALKMAN_MUSIC_FOLDER (/Volumes/WALKMAN/MUSIC))
