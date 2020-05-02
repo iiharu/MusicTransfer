@@ -173,7 +173,6 @@ class iTunesTransfer : ObservableObject {
 
         // Transfer Songs
         let dispatch_group = DispatchGroup()
-        let startTime = Date()
         for (_, (src, dst)) in copy_location_map {
             DispatchQueue.global().async(group: dispatch_group){
                 // FileManager
@@ -192,43 +191,41 @@ class iTunesTransfer : ObservableObject {
                         try file_manager.createDirectory(at: parentFolderLocation,  withIntermediateDirectories: true, attributes: nil)
                     } catch (let e) {
                         print(e)
+                        return // TODO: push error to error stack
                     }
                 } else if (!isDir.boolValue) {
                     // Skip if parentFolderLocation is exist and not folder
                     print("\(parentFolderLocation) exist and not folder")
-                    // continue // TODO: raise Error
-                    return
+                    return // TODO: push error to error stack
                 }
             
                 // CopyItem
                 if (file_manager.fileExists(atPath: dstLocation.path)) {
                     // get interval copy src between copy dst
                     guard let interval = self.get_file_modification_interval(src: src.path, dst: dstLocation.path, fileManager: file_manager) else {
-                        // continue
-                        return
+                        return // TODO: push error to error stack
                     }
                     // if interval is -60 ~ 60 then skip copy
                     if (abs(interval) < 60) {
-                        // continue
-                        return
+                        return // TODO: push error to error stack
                     }
                     // copy dst is old then remove dst
                     do {
                         try file_manager.removeItem(at: dstLocation)
                     } catch (let e) {
                         print(e)
+                        return // TODO: push error to error stack
                     }
                 }
                 do {
                     try file_manager.copyItem(at: src, to: dstLocation)
                 } catch(let e) {
                     print(e)
+                    return // TODO: push error to error stack
                 }
             }
         }
         let _ = dispatch_group.wait(timeout: .distantFuture)
-        let duration = Date().timeIntervalSince(startTime)
-        print(duration)
         
         // Transfer Playlist
         for (name, ids) in playlist_map {
