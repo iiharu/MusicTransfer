@@ -173,6 +173,7 @@ class iTunesTransfer : ObservableObject {
 
         // Transfer Songs
         let dispatch_group = DispatchGroup()
+        let startTime = Date()
         for (_, (src, dst)) in copy_location_map {
             DispatchQueue.global().async(group: dispatch_group){
                 // FileManager
@@ -219,7 +220,6 @@ class iTunesTransfer : ObservableObject {
                     }
                 }
                 do {
-                    print(dst)
                     try file_manager.copyItem(at: src, to: dstLocation)
                 } catch(let e) {
                     print(e)
@@ -227,6 +227,8 @@ class iTunesTransfer : ObservableObject {
             }
         }
         let _ = dispatch_group.wait(timeout: .distantFuture)
+        let duration = Date().timeIntervalSince(startTime)
+        print(duration)
         
         // Transfer Playlist
         for (name, ids) in playlist_map {
