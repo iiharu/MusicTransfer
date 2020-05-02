@@ -103,7 +103,8 @@ class iTunesTransfer : ObservableObject {
     }
     
     // Get src dst modification interval
-    func get_file_modification_interval(src: String, dst: String) -> TimeInterval? {
+    func get_file_modification_interval(src: String, dst: String,
+                                        fileManager: FileManager = FileManager.default) -> TimeInterval? {
         if (!fileManager.fileExists(atPath: src) || !fileManager.fileExists(atPath: dst)) {
             return nil
         }
@@ -171,51 +172,61 @@ class iTunesTransfer : ObservableObject {
         }
 
         // Transfer Songs
+        let dispatch_group = DispatchGroup()
         for (_, (src, dst)) in copy_location_map {
-            
-            // destination
-            let dstLocation: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(dst)
-            
-            // parentFolderLocation
-            let parentFolderLocation: URL = dstLocation.deletingLastPathComponent()
+            DispatchQueue.global().async(group: dispatch_group){
+                // FileManager
+                let file_manager = FileManager.default
 
-            // Create parentFolderLocation does not exists.
-            if (!fileManager.fileExists(atPath: parentFolderLocation.path, isDirectory: &isDir)) {
-                // createDirectory
-                do {
-                    try fileManager.createDirectory(at: parentFolderLocation, withIntermediateDirectories: true, attributes: nil)
-                } catch (let e) {
-                    print(e)
-                }
-            } else if (!isDir.boolValue) {
-                // Skip if parentFolderLocation is exist and not folder
-                print("\(parentFolderLocation) exist and not folder")
-                continue // TODO: raise Error
-            }
+                // destination
+                let dstLocation: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(dst)
             
-            // CopyItem
-            if (fileManager.fileExists(atPath: dstLocation.path)) {
-                // get interval copy src between copy dst
-                guard let interval = get_file_modification_interval(src: src.path, dst: dstLocation.path) else {
-                    continue
+                // parentFolderLocation
+                let parentFolderLocation: URL = dstLocation.deletingLastPathComponent()
+
+                // Create parentFolderLocation does not exists.
+                if (!file_manager.fileExists(atPath: parentFolderLocation.path, isDirectory: &isDir)) {
+                // createDirectory
+                    do {
+                        try file_manager.createDirectory(at: parentFolderLocation,  withIntermediateDirectories: true, attributes: nil)
+                    } catch (let e) {
+                        print(e)
+                    }
+                } else if (!isDir.boolValue) {
+                    // Skip if parentFolderLocation is exist and not folder
+                    print("\(parentFolderLocation) exist and not folder")
+                    // continue // TODO: raise Error
+                    return
                 }
-                // if interval is -60 ~ 60 then skip copy
-                if (abs(interval) < 60) {
-                    continue
+            
+                // CopyItem
+                if (file_manager.fileExists(atPath: dstLocation.path)) {
+                    // get interval copy src between copy dst
+                    guard let interval = self.get_file_modification_interval(src: src.path, dst: dstLocation.path, fileManager: file_manager) else {
+                        // continue
+                        return
+                    }
+                    // if interval is -60 ~ 60 then skip copy
+                    if (abs(interval) < 60) {
+                        // continue
+                        return
+                    }
+                    // copy dst is old then remove dst
+                    do {
+                        try file_manager.removeItem(at: dstLocation)
+                    } catch (let e) {
+                        print(e)
+                    }
                 }
-                // copy dst is old then remove dst
                 do {
-                    try fileManager.removeItem(at: dstLocation)
-                } catch (let e) {
+                    print(dst)
+                    try file_manager.copyItem(at: src, to: dstLocation)
+                } catch(let e) {
                     print(e)
                 }
-            }
-            do {
-                try fileManager.copyItem(at: src, to: dstLocation)
-            } catch(let e) {
-                print(e)
             }
         }
+        let _ = dispatch_group.wait(timeout: .distantFuture)
         
         // Transfer Playlist
         for (name, ids) in playlist_map {
