@@ -200,6 +200,28 @@ class iTunesTransfer : ObservableObject {
         }
     }
 
+    // transfer playlist
+    func transfer_playlist (name: String, items: [String?],
+                            fileManager: FileManager = FileManager.default) -> Void {
+        // M3U8
+        let m3u8: String = [self.walkman_music_folder, name + ".M3U8"].joined(separator: "/")
+
+        // Contents
+        var contents: String = "#EXTM3U\n"
+        for item: String? in items {
+            contents.append(contentsOf: "#EXTINF:,\n")
+            contents.append(contentsOf: item! + "\n")
+        }
+
+        // Dump
+        fileManager.createFile(atPath: m3u8, contents: nil, attributes: nil)
+        guard let handle: FileHandle = FileHandle(forUpdatingAtPath: m3u8) else {
+            return
+        }
+        handle.write(contents.data(using: .utf8)!)
+        handle.closeFile()
+    }
+
     func transfer () -> Void {
         
         var isDir: ObjCBool = ObjCBool(false)
