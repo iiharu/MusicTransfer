@@ -51,7 +51,7 @@ class iTunesTransfer : ObservableObject {
     private var dict: Dictionary<NSNumber, String> = [:]
     
     // Copy Location Map (persistentID -> (Copy src, Copy dst (NFD))
-    private var copy_location_map: Dictionary<NSNumber, (srcLoc: URL, dst: String)> = [:]
+    private var copy_location_map: Dictionary<NSNumber, (src: String, dst: String)> = [:]
     
     // Playlist Map (name -> [NSNumber])
     private var playlist_map: Dictionary<String, [NSNumber]> = [:]
@@ -133,8 +133,8 @@ class iTunesTransfer : ObservableObject {
         for item: ITLibMediaItem in allSongItems {
             // ID
             let id: NSNumber = item.persistentID
-            // src (location)
-            guard let srcLoc: URL = item.location else {
+            // src
+            guard let src: String = item.location?.path else {
                 print("ITLibMediaItem's location is nil.")
                 return // TODO: raise Error
             }
@@ -146,7 +146,7 @@ class iTunesTransfer : ObservableObject {
             
             // Insert (src, dst) tuple to copy_location_map
             // CAUTION: dst is NFD (Normalization Form Canonical Decomposition)
-            copy_location_map[id] = (srcLoc, dst)
+            copy_location_map[id] = (src, dst)
         }
         
         // Playlists
@@ -161,6 +161,45 @@ class iTunesTransfer : ObservableObject {
     }
     
     // Instance Method
+    func transfer_song(src: String, dst: String,
+                       fileManager: FileManager = FileManager.default) -> Void {
+        // Check src
+        if (!fileManager.fileExists(atPath: src)) {
+            return // TODO: push error to error stack
+        }
+
+        // Check dst parent dir
+        let dstParDir: String = (dst as NSString).deletingLastPathComponent
+        do {
+            try fileManager.createDirectory(atPath: dstParDir, withIntermediateDirectories: true, attributes: nil)
+        } catch (let e) {
+            print(e)
+            return // TODO: push error to error stack
+        }
+
+        // CopyItem
+        if (fileManager.fileExists(atPath: dst)) {
+            guard let interval = self.get_file_modification_interval(src: src, dst: dst, fileManager: fileManager) else {
+                return // TODO: push error to error stack
+            }
+            if (abs(interval) < 60) {
+                return // TODO: push error to error stack
+            }
+            do{
+                try fileManager.removeItem(atPath: dst)
+            } catch (let e) {
+                print(e)
+                return // TODO: push error to error stack
+            }
+        }
+        do {
+            try fileManager.copyItem(atPath: src, toPath: dst)
+        } catch (let e) {
+            print (e)
+            return // TODO: push error to error stack
+        }
+    }
+
     func transfer () -> Void {
         
         var isDir: ObjCBool = ObjCBool(false)
@@ -173,56 +212,11 @@ class iTunesTransfer : ObservableObject {
 
         // Transfer Songs
         let dispatch_group = DispatchGroup()
-        for (_, (srcLoc, dst)) in copy_location_map {
+        for (_, (src, dst)) in copy_location_map {
             DispatchQueue.global().async(group: dispatch_group){
-                // FileManager
-                let file_manager = FileManager.default
-
-                // destination
-                let dstLoc: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(dst)
-            
-                // parentFolderLocation
-                let parDirLoc: URL = dstLoc.deletingLastPathComponent()
-
-                // Create parentFolderLocation does not exists.
-                if (!file_manager.fileExists(atPath: parDirLoc.path, isDirectory: &isDir)) {
-                // createDirectory
-                    do {
-                        try file_manager.createDirectory(at: parDirLoc,  withIntermediateDirectories: true, attributes: nil)
-                    } catch (let e) {
-                        print(e)
-                        return // TODO: push error to error stack
-                    }
-                } else if (!isDir.boolValue) {
-                    // Skip if parentFolderLocation is exist and not folder
-                    print("\(parDirLoc) exist and not folder")
-                    return // TODO: push error to error stack
-                }
-            
-                // CopyItem
-                if (file_manager.fileExists(atPath: dstLoc.path)) {
-                    // get interval copy src between copy dst
-                    guard let interval = self.get_file_modification_interval(src: srcLoc.path, dst: dstLoc.path, fileManager: file_manager) else {
-                        return // TODO: push error to error stack
-                    }
-                    // if interval is -60 ~ 60 then skip copy
-                    if (abs(interval) < 60) {
-                        return // TODO: push error to error stack
-                    }
-                    // copy dst is old then remove dst
-                    do {
-                        try file_manager.removeItem(at: dstLoc)
-                    } catch (let e) {
-                        print(e)
-                        return // TODO: push error to error stack
-                    }
-                }
-                do {
-                    try file_manager.copyItem(at: srcLoc, to: dstLoc)
-                } catch(let e) {
-                    print(e)
-                    return // TODO: push error to error stack
-                }
+                let copySrc: String = src
+                let copyDst: String = [self.walkman_music_folder, dst].joined(separator: "/")
+                self.transfer_song(src: copySrc, dst: copyDst)
             }
         }
         let _ = dispatch_group.wait(timeout: .distantFuture)
