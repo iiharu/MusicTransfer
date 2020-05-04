@@ -51,7 +51,7 @@ class iTunesTransfer : ObservableObject {
     private var dict: Dictionary<NSNumber, String> = [:]
     
     // Copy Location Map (persistentID -> (Copy src, Copy dst (NFD))
-    private var copy_location_map: Dictionary<NSNumber, (src: URL, dst: String)> = [:]
+    private var copy_location_map: Dictionary<NSNumber, (srcLoc: URL, dst: String)> = [:]
     
     // Playlist Map (name -> [NSNumber])
     private var playlist_map: Dictionary<String, [NSNumber]> = [:]
@@ -134,7 +134,7 @@ class iTunesTransfer : ObservableObject {
             // ID
             let id: NSNumber = item.persistentID
             // src (location)
-            guard let src: URL = item.location else {
+            guard let srcLoc: URL = item.location else {
                 print("ITLibMediaItem's location is nil.")
                 return // TODO: raise Error
             }
@@ -146,7 +146,7 @@ class iTunesTransfer : ObservableObject {
             
             // Insert (src, dst) tuple to copy_location_map
             // CAUTION: dst is NFD (Normalization Form Canonical Decomposition)
-            copy_location_map[id] = (src, dst)
+            copy_location_map[id] = (srcLoc, dst)
         }
         
         // Playlists
