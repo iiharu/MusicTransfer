@@ -226,28 +226,34 @@ class iTunesTransfer : ObservableObject {
             // [NFC String]
             let items: [String?] = ids.map({copy_location_map[$0]?.dst.precomposedStringWithCanonicalMapping}).filter({$0 != nil})
             
-            // M3U8
-            let m3u8Loc: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(name + ".M3U8")
-
-            // M3U8 Contents
-            var contents: String = "#EXTM3U\n"
-            for item: String? in items {
-                contents.append(contentsOf: "#EXTINF:,\n")
-                contents.append(contentsOf: item! + "\n")
-            }
+            DispatchQueue.global().async(group: dispatch_group){
+                let file_maneger = FileManager.default
             
-            // Dump M3U8
-            if (!fileManager.fileExists(atPath: m3u8Loc.path)) {
-                fileManager.createFile(atPath: m3u8Loc.path, contents: nil, attributes: nil)
-            }
-            do {
-                let handle: FileHandle = try FileHandle(forUpdating: m3u8Loc)
-                handle.write(contents.data(using: .utf8)!)
-                handle.closeFile()
-            } catch (let e) {
-                print(e)
+                // M3U8
+                let m3u8Loc: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(name + ".M3U8")
+
+                // M3U8 Contents
+                var contents: String = "#EXTM3U\n"
+                for item: String? in items {
+                    contents.append(contentsOf: "#EXTINF:,\n")
+                    contents.append(contentsOf: item! + "\n")
+                }
+
+                // Dump M3U8
+                if (!file_maneger.fileExists(atPath: m3u8Loc.path)) {
+                    file_maneger.createFile(atPath: m3u8Loc.path, contents: nil, attributes: nil)
+                }
+                do {
+                    let handle: FileHandle = try FileHandle(forUpdating: m3u8Loc)
+                    handle.write(contents.data(using: .utf8)!)
+                    handle.closeFile()
+                } catch (let e) {
+                    print(e)
+                }
             }
         }
+        let _ = dispatch_group.wait(timeout: .distantFuture)
     }
+
 }
 
