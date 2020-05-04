@@ -216,7 +216,7 @@ class iTunesTransfer : ObservableObject {
         // Dump
         fileManager.createFile(atPath: m3u8, contents: nil, attributes: nil)
         guard let handle: FileHandle = FileHandle(forUpdatingAtPath: m3u8) else {
-            return
+            return // TODO: push error to error stack
         }
         handle.write(contents.data(using: .utf8)!)
         handle.closeFile()
@@ -245,33 +245,10 @@ class iTunesTransfer : ObservableObject {
         
         // Transfer Playlist
         for (name, ids) in playlist_map {
-            // [NFC String]
+            // get item relative path (as unicode nfc)
             let items: [String?] = ids.map({copy_location_map[$0]?.dst.precomposedStringWithCanonicalMapping}).filter({$0 != nil})
-            
             DispatchQueue.global().async(group: dispatch_group){
-                let file_maneger = FileManager.default
-            
-                // M3U8
-                let m3u8Loc: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(name + ".M3U8")
-
-                // M3U8 Contents
-                var contents: String = "#EXTM3U\n"
-                for item: String? in items {
-                    contents.append(contentsOf: "#EXTINF:,\n")
-                    contents.append(contentsOf: item! + "\n")
-                }
-
-                // Dump M3U8
-                if (!file_maneger.fileExists(atPath: m3u8Loc.path)) {
-                    file_maneger.createFile(atPath: m3u8Loc.path, contents: nil, attributes: nil)
-                }
-                do {
-                    let handle: FileHandle = try FileHandle(forUpdating: m3u8Loc)
-                    handle.write(contents.data(using: .utf8)!)
-                    handle.closeFile()
-                } catch (let e) {
-                    print(e)
-                }
+                self.transfer_playlist(name: name, items: items)
             }
         }
         let _ = dispatch_group.wait(timeout: .distantFuture)
