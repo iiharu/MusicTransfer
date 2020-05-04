@@ -233,7 +233,7 @@ class iTunesTransfer : ObservableObject {
             let items: [String?] = ids.map({copy_location_map[$0]?.dst.precomposedStringWithCanonicalMapping}).filter({$0 != nil})
             
             // M3U8
-            let m3u8: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(name + ".M3U8")
+            let m3u8Loc: URL = URL(fileURLWithPath: self.walkman_music_folder).appendingPathComponent(name + ".M3U8")
 
             // M3U8 Contents
             var contents: String = "#EXTM3U\n"
@@ -243,11 +243,11 @@ class iTunesTransfer : ObservableObject {
             }
             
             // Dump M3U8
-            if (!fileManager.fileExists(atPath: m3u8.path)) {
-                fileManager.createFile(atPath: m3u8.path, contents: nil, attributes: nil)
+            if (!fileManager.fileExists(atPath: m3u8Loc.path)) {
+                fileManager.createFile(atPath: m3u8Loc.path, contents: nil, attributes: nil)
             }
             do {
-                let handle: FileHandle = try FileHandle(forUpdating: m3u8)
+                let handle: FileHandle = try FileHandle(forUpdating: m3u8Loc)
                 handle.write(contents.data(using: .utf8)!)
                 handle.closeFile()
             } catch (let e) {
